@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Inburgering — Dutch A1→A2 Trainer</title>
+<style>
+/* ---------- Design tokens ----------
+   Subject: Dutch civic integration. Signature look pulls from the
+   NS / Dutch wayfinding world — signal yellow, ink navy, route lines.
+   Not a cream-serif-terracotta template; this is a transit-board identity. */
+:root{
+  --ink:#15233b;          /* deep navy ink */
+  --ink-soft:#46546e;
+  --paper:#f6f4ee;        /* warm off-white */
+  --card:#ffffff;
+  --line:#dcd8cc;
+  --signal:#ffcf2d;       /* NS-ish signal yellow */
+  --signal-deep:#e7a500;
+  --route:#1f6feb;        /* route blue */
+  --good:#1f9d6b;
+  --bad:#d6453d;
+  --shadow:0 1px 0 rgba(21,35,59,.04), 0 8px 24px -16px rgba(21,35,59,.45);
+  --r:16px;
+  font-synthesis:none;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input,textarea,select{font-family:inherit;font-size:16px;}
+
+/* ---------- App frame ---------- */
+.wrap{max-width:680px;margin:0 auto;padding:0 16px 120px;}
+
+/* ---------- Top bar: a transit destination board ---------- */
+.board{
+  background:var(--ink);
+  color:#fff;
+  border-radius:0 0 22px 22px;
+  padding:calc(14px + env(safe-area-inset-top)) 18px 18px;
+  margin:0 -16px 18px;
+  position:relative;
+  overflow:hidden;
+}
+.board::after{ /* route line motif */
+  content:"";position:absolute;left:18px;right:18px;bottom:12px;height:2px;
+  background:repeating-linear-gradient(90deg,var(--signal) 0 14px,transparent 14px 22px);
+  opacity:.5;
+}
+.board-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.brand{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal);font-weight:600;}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--signal);box-shadow:0 0 0 4px rgba(255,207,45,.18);}
+.board h1{font-size:23px;margin-top:10px;color:#fff;}
+.board .sub{color:#aeb9cd;font-size:13.5px;margin-top:3px;}
+
+/* profile + level controls */
+.controls{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.seg{display:inline-flex;background:rgba(255,255,255,.08);border-radius:11px;padding:3px;gap:2px;}
+.seg button{padding:7px 13px;border-radius:8px;font-size:13.5px;font-weight:600;color:#c4cdde;transition:.15s;}
+.seg button.on{background:var(--signal);color:var(--ink);}
+.seg.level button.on{background:var(--route);color:#fff;}
+
+/* ---------- Tabs ---------- */
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{white-space:nowrap;padding:9px 15px;border-radius:999px;font-size:14px;font-weight:600;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);}
+.tab.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+.tab .lock{opacity:.5;font-size:11px;}
+
+/* ---------- Cards ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);margin-bottom:14px;}
+.card h2{font-size:17px;display:flex;align-items:center;gap:8px;}
+.eyebrow{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--signal-deep);font-weight:700;}
+.muted{color:var(--ink-soft);font-size:14px;}
+
+/* progress rails */
+.rail{display:grid;grid-template-columns:84px 1fr 40px;align-items:center;gap:10px;margin:9px 0;font-size:13.5px;}
+.rail .track{height:8px;background:#eceae2;border-radius:99px;overflow:hidden;}
+.rail .fill{height:100%;background:linear-gradient(90deg,var(--route),#3c8aff);border-radius:99px;transition:width .4s;}
+.rail .pct{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink-soft);font-weight:600;}
+
+/* stat chips */
+.stats{display:flex;gap:10px;flex-wrap:wrap;}
+.stat{flex:1;min-width:90px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;}
+.stat .n{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;}
+.stat .l{font-size:12px;color:var(--ink-soft);}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 16px;border-radius:12px;font-weight:600;font-size:15px;background:var(--ink);color:#fff;transition:.12s;}
+.btn:active{transform:translateY(1px);}
+.btn.signal{background:var(--signal);color:var(--ink);}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);}
+.btn.block{width:100%;}
+.btn.sm{padding:9px 12px;font-size:14px;}
+.row{display:flex;gap:9px;flex-wrap:wrap;}
+
+/* checklist */
+.check{display:flex;align-items:center;gap:11px;padding:11px 4px;border-bottom:1px solid var(--line);}
+.check:last-child{border-bottom:none;}
+.check input{width:21px;height:21px;accent-color:var(--route);flex:none;}
+.check.done span{text-decoration:line-through;color:var(--ink-soft);}
+
+/* flashcard */
+.flash{perspective:1200px;}
+.flash-inner{position:relative;min-height:200px;border-radius:18px;transition:transform .5s;transform-style:preserve-3d;cursor:pointer;}
+.flash-inner.flip{transform:rotateY(180deg);}
+.face{position:absolute;inset:0;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:18px;padding:24px;text-align:center;}
+.face.front{background:var(--ink);color:#fff;}
+.face.back{background:var(--signal);color:var(--ink);transform:rotateY(180deg);}
+.face .word{font-size:30px;font-weight:800;letter-spacing:-.02em;}
+.face .topic{font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-bottom:10px;}
+.face .hint{position:absolute;bottom:14px;font-size:12px;opacity:.6;}
+.grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
+.grade button{padding:13px 6px;border-radius:12px;font-weight:700;font-size:14px;color:#fff;}
+.g-again{background:var(--bad);}
+.g-hard{background:var(--signal-deep);}
+.g-good{background:var(--good);}
+
+/* quiz */
+.opt{display:block;width:100%;text-align:left;padding:14px;border:1.5px solid var(--line);border-radius:12px;margin-bottom:9px;font-size:15px;background:var(--card);transition:.12s;}
+.opt:active{transform:scale(.99);}
+.opt.correct{border-color:var(--good);background:#eafaf2;}
+.opt.wrong{border-color:var(--bad);background:#fdecea;}
+.opt.dim{opacity:.55;}
+.why{font-size:13.5px;color:var(--ink-soft);background:var(--paper);border-left:3px solid var(--signal);padding:10px 12px;border-radius:0 10px 10px 0;margin-top:6px;}
+.passbar{font-size:13px;font-weight:600;padding:6px 10px;border-radius:8px;display:inline-block;}
+.passbar.pass{background:#eafaf2;color:var(--good);}
+.passbar.fail{background:#fdecea;color:var(--bad);}
+
+/* reading/listening text block */
+.passage{white-space:pre-wrap;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:15px;margin-bottom:12px;}
+.speak-prompt{font-size:18px;font-weight:600;padding:18px;background:var(--paper);border-radius:12px;border:1px solid var(--line);margin-bottom:12px;}
+
+/* roadmap */
+.leg{display:grid;grid-template-columns:54px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);}
+.leg:last-child{border-bottom:none;}
+.leg .wk{font-weight:800;font-size:13px;color:var(--route);font-variant-numeric:tabular-nums;}
+.leg .focus{font-size:14.5px;font-weight:600;}
+.leg .part{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+
+textarea.write{width:100%;min-height:130px;border:1.5px solid var(--line);border-radius:12px;padding:12px;resize:vertical;}
+
+.locked-note{text-align:center;padding:30px 16px;color:var(--ink-soft);}
+.locked-note .big{font-size:40px;}
+hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0;}
+.tiny{font-size:12px;color:var(--ink-soft);}
+.kbd{font-variant-numeric:tabular-nums;font-weight:700;}
+/* glossary rows */
+.wrow{display:grid;grid-template-columns:34px 1fr 18px;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);}
+.wrow:last-child{border-bottom:none;}
+.wrow .spk{font-size:16px;background:var(--paper);border:1px solid var(--line);border-radius:9px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;}
+.wrow .spk:active{transform:scale(.92);}
+.wpair{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.wprim{font-weight:700;font-size:15.5px;}
+.warrow{color:var(--signal-deep);font-size:13px;}
+.wsec{color:var(--ink-soft);font-size:14.5px;}
+.wknown{color:var(--good);font-weight:800;text-align:center;}
+/* inline gloss strip on quiz/prompt tabs */
+.gloss{margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden;}
+.gloss summary{cursor:pointer;padding:8px 12px;font-size:13px;font-weight:600;color:var(--ink-soft);list-style:none;}
+.gloss summary::-webkit-details-marker{display:none;}
+.gloss summary::before{content:"📖 ";}
+.glist{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px;}
+.gitem{font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 8px;}
+.gitem b{color:var(--ink);}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- ===== Destination board / header ===== -->
+  <header class="board">
+    <div class="board-top">
+      <div class="brand"><span class="dot"></span> Inburgering · route to A2</div>
+    </div>
+    <h1 id="greet">Goedendag 👋</h1>
+    <div class="sub" id="subline">Dutch civic-integration trainer for you and your wife</div>
+    <div class="controls">
+      <div class="seg" id="profSeg"></div>
+      <div class="seg level" id="lvlSeg">
+        <button data-lvl="A1">A1 · learn</button>
+        <button data-lvl="A2">A2 · exam</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== Tabs ===== -->
+  <nav class="tabs" id="tabs"></nav>
+
+  <!-- ===== Sections mount here ===== -->
+  <main id="view"></main>
+
+  <footer class="tiny" style="text-align:center;margin-top:20px;line-height:1.7">
+    Progress auto-saves on this device. Both profiles live in one file — switch with the name buttons up top.<br>
+    Pass marks built in: Lezen 17/25 · Luisteren 17/25 · KNM 26/40 · A2, voluntary route (no ONA).
+  </footer>
+</div>
+
+<script>
+/* ====== CONTENT BANK (inlined) ====== */
+// ============================================================
+//  Inburgering A2 — content bank
+//  All content authored for exam-style practice. Dutch → English.
+// ============================================================
+
+// Auto-built expanded vocab. Each: {nl, en, topic, lvl}
+// lvl "A1" = foundational; "A2" = added at exam level.
+const VOCAB = [
+// ===== Greetings & social (A1) =====
+{nl:"hallo",en:"hello",topic:"Greetings",lvl:"A1"},
+{nl:"dag",en:"hi / bye",topic:"Greetings",lvl:"A1"},
+{nl:"goedemorgen",en:"good morning",topic:"Greetings",lvl:"A1"},
+{nl:"goedemiddag",en:"good afternoon",topic:"Greetings",lvl:"A1"},
+{nl:"goedenavond",en:"good evening",topic:"Greetings",lvl:"A1"},
+{nl:"goedenacht",en:"good night",topic:"Greetings",lvl:"A1"},
+{nl:"tot ziens",en:"goodbye / see you",topic:"Greetings",lvl:"A1"},
+{nl:"tot straks",en:"see you later",topic:"Greetings",lvl:"A1"},
+{nl:"tot morgen",en:"see you tomorrow",topic:"Greetings",lvl:"A1"},
+{nl:"alsjeblieft",en:"please / here you go (informal)",topic:"Greetings",lvl:"A1"},
+{nl:"alstublieft",en:"please / here you go (formal)",topic:"Greetings",lvl:"A1"},
+{nl:"dank je wel",en:"thank you (informal)",topic:"Greetings",lvl:"A1"},
+{nl:"dank u wel",en:"thank you (formal)",topic:"Greetings",lvl:"A1"},
+{nl:"bedankt",en:"thanks",topic:"Greetings",lvl:"A1"},
+{nl:"graag gedaan",en:"you're welcome",topic:"Greetings",lvl:"A1"},
+{nl:"sorry",en:"sorry",topic:"Greetings",lvl:"A1"},
+{nl:"pardon",en:"excuse me",topic:"Greetings",lvl:"A1"},
+{nl:"hoe gaat het?",en:"how are you?",topic:"Greetings",lvl:"A1"},
+{nl:"goed",en:"good / fine",topic:"Greetings",lvl:"A1"},
+{nl:"niet zo goed",en:"not so good",topic:"Greetings",lvl:"A1"},
+{nl:"ja",en:"yes",topic:"Greetings",lvl:"A1"},
+{nl:"nee",en:"no",topic:"Greetings",lvl:"A1"},
+{nl:"misschien",en:"maybe",topic:"Greetings",lvl:"A1"},
+{nl:"gefeliciteerd",en:"congratulations",topic:"Greetings",lvl:"A2"},
+{nl:"welkom",en:"welcome",topic:"Greetings",lvl:"A1"},
+{nl:"aangenaam",en:"nice to meet you",topic:"Greetings",lvl:"A2"},
+
+// ===== Personal info (A1) =====
+{nl:"de naam",en:"the name",topic:"Personal info",lvl:"A1"},
+{nl:"de voornaam",en:"the first name",topic:"Personal info",lvl:"A1"},
+{nl:"de achternaam",en:"the surname",topic:"Personal info",lvl:"A1"},
+{nl:"het adres",en:"the address",topic:"Personal info",lvl:"A1"},
+{nl:"de geboortedatum",en:"the date of birth",topic:"Personal info",lvl:"A2"},
+{nl:"het land",en:"the country",topic:"Personal info",lvl:"A1"},
+{nl:"de nationaliteit",en:"the nationality",topic:"Personal info",lvl:"A2"},
+{nl:"het telefoonnummer",en:"the phone number",topic:"Personal info",lvl:"A1"},
+{nl:"de handtekening",en:"the signature",topic:"Personal info",lvl:"A2"},
+{nl:"het paspoort",en:"the passport",topic:"Personal info",lvl:"A1"},
+{nl:"het rijbewijs",en:"the driving licence",topic:"Personal info",lvl:"A2"},
+{nl:"getrouwd",en:"married",topic:"Personal info",lvl:"A1"},
+{nl:"ongetrouwd",en:"unmarried",topic:"Personal info",lvl:"A2"},
+
+// ===== Numbers & time (A1) =====
+{nl:"nul",en:"zero",topic:"Numbers & Time",lvl:"A1"},
+{nl:"één",en:"one",topic:"Numbers & Time",lvl:"A1"},
+{nl:"twee",en:"two",topic:"Numbers & Time",lvl:"A1"},
+{nl:"drie",en:"three",topic:"Numbers & Time",lvl:"A1"},
+{nl:"vier",en:"four",topic:"Numbers & Time",lvl:"A1"},
+{nl:"vijf",en:"five",topic:"Numbers & Time",lvl:"A1"},
+{nl:"zes",en:"six",topic:"Numbers & Time",lvl:"A1"},
+{nl:"zeven",en:"seven",topic:"Numbers & Time",lvl:"A1"},
+{nl:"acht",en:"eight",topic:"Numbers & Time",lvl:"A1"},
+{nl:"negen",en:"nine",topic:"Numbers & Time",lvl:"A1"},
+{nl:"tien",en:"ten",topic:"Numbers & Time",lvl:"A1"},
+{nl:"elf",en:"eleven",topic:"Numbers & Time",lvl:"A1"},
+{nl:"twaalf",en:"twelve",topic:"Numbers & Time",lvl:"A1"},
+{nl:"twintig",en:"twenty",topic:"Numbers & Time",lvl:"A1"},
+{nl:"vijftig",en:"fifty",topic:"Numbers & Time",lvl:"A1"},
+{nl:"honderd",en:"hundred",topic:"Numbers & Time",lvl:"A1"},
+{nl:"duizend",en:"thousand",topic:"Numbers & Time",lvl:"A2"},
+{nl:"de maandag",en:"Monday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de dinsdag",en:"Tuesday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de woensdag",en:"Wednesday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de donderdag",en:"Thursday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de vrijdag",en:"Friday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de zaterdag",en:"Saturday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de zondag",en:"Sunday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"vandaag",en:"today",topic:"Numbers & Time",lvl:"A1"},
+{nl:"morgen",en:"tomorrow",topic:"Numbers & Time",lvl:"A1"},
+{nl:"gisteren",en:"yesterday",topic:"Numbers & Time",lvl:"A1"},
+{nl:"overmorgen",en:"the day after tomorrow",topic:"Numbers & Time",lvl:"A2"},
+{nl:"de week",en:"the week",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de maand",en:"the month",topic:"Numbers & Time",lvl:"A1"},
+{nl:"het jaar",en:"the year",topic:"Numbers & Time",lvl:"A1"},
+{nl:"het uur",en:"the hour",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de minuut",en:"the minute",topic:"Numbers & Time",lvl:"A1"},
+{nl:"hoe laat is het?",en:"what time is it?",topic:"Numbers & Time",lvl:"A1"},
+{nl:"half drie",en:"half past two (2:30)",topic:"Numbers & Time",lvl:"A2"},
+{nl:"kwart over zes",en:"quarter past six",topic:"Numbers & Time",lvl:"A2"},
+{nl:"kwart voor acht",en:"quarter to eight",topic:"Numbers & Time",lvl:"A2"},
+{nl:"de ochtend",en:"the morning",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de middag",en:"the afternoon",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de avond",en:"the evening",topic:"Numbers & Time",lvl:"A1"},
+{nl:"de nacht",en:"the night",topic:"Numbers & Time",lvl:"A1"},
+{nl:"vroeg",en:"early",topic:"Numbers & Time",lvl:"A2"},
+{nl:"laat",en:"late",topic:"Numbers & Time",lvl:"A2"},
+
+// ===== Family (A1) =====
+{nl:"de man",en:"the man / husband",topic:"Family",lvl:"A1"},
+{nl:"de vrouw",en:"the woman / wife",topic:"Family",lvl:"A1"},
+{nl:"het kind",en:"the child",topic:"Family",lvl:"A1"},
+{nl:"de kinderen",en:"the children",topic:"Family",lvl:"A1"},
+{nl:"de ouders",en:"the parents",topic:"Family",lvl:"A1"},
+{nl:"de vader",en:"the father",topic:"Family",lvl:"A1"},
+{nl:"de moeder",en:"the mother",topic:"Family",lvl:"A1"},
+{nl:"de dochter",en:"the daughter",topic:"Family",lvl:"A1"},
+{nl:"de zoon",en:"the son",topic:"Family",lvl:"A1"},
+{nl:"de broer",en:"the brother",topic:"Family",lvl:"A1"},
+{nl:"de zus",en:"the sister",topic:"Family",lvl:"A1"},
+{nl:"de opa",en:"the grandfather",topic:"Family",lvl:"A1"},
+{nl:"de oma",en:"the grandmother",topic:"Family",lvl:"A1"},
+{nl:"de partner",en:"the partner",topic:"Family",lvl:"A2"},
+{nl:"de vriend",en:"the friend / boyfriend",topic:"Family",lvl:"A1"},
+{nl:"de vriendin",en:"the friend / girlfriend",topic:"Family",lvl:"A1"},
+{nl:"de buurman",en:"the neighbour (m)",topic:"Family",lvl:"A2"},
+{nl:"de buurvrouw",en:"the neighbour (f)",topic:"Family",lvl:"A2"},
+{nl:"samenwonen",en:"to live together",topic:"Family",lvl:"A2"},
+{nl:"de familie",en:"the family",topic:"Family",lvl:"A1"},
+
+// ===== Food & shopping (A1) =====
+{nl:"het eten",en:"the food",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het ontbijt",en:"the breakfast",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de lunch",en:"the lunch",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het avondeten",en:"the dinner",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het brood",en:"the bread",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de kaas",en:"the cheese",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de melk",en:"the milk",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het water",en:"the water",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de koffie",en:"the coffee",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de thee",en:"the tea",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de appel",en:"the apple",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de groente",en:"the vegetables",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het fruit",en:"the fruit",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het vlees",en:"the meat",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de vis",en:"the fish",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het ei",en:"the egg",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de suiker",en:"the sugar",topic:"Food & Shopping",lvl:"A2"},
+{nl:"het zout",en:"the salt",topic:"Food & Shopping",lvl:"A2"},
+{nl:"de winkel",en:"the shop",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de supermarkt",en:"the supermarket",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de markt",en:"the market",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de bakker",en:"the bakery",topic:"Food & Shopping",lvl:"A2"},
+{nl:"betalen",en:"to pay",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de pinpas",en:"the debit card",topic:"Food & Shopping",lvl:"A1"},
+{nl:"het geld",en:"the money",topic:"Food & Shopping",lvl:"A1"},
+{nl:"contant",en:"cash",topic:"Food & Shopping",lvl:"A2"},
+{nl:"duur",en:"expensive",topic:"Food & Shopping",lvl:"A1"},
+{nl:"goedkoop",en:"cheap",topic:"Food & Shopping",lvl:"A1"},
+{nl:"de korting",en:"the discount",topic:"Food & Shopping",lvl:"A2"},
+{nl:"de aanbieding",en:"the special offer",topic:"Food & Shopping",lvl:"A2"},
+{nl:"de bon",en:"the receipt",topic:"Food & Shopping",lvl:"A2"},
+{nl:"de prijs",en:"the price",topic:"Food & Shopping",lvl:"A1"},
+
+// ===== Home (A1) =====
+{nl:"het huis",en:"the house",topic:"Home",lvl:"A1"},
+{nl:"de woning",en:"the dwelling / home",topic:"Home",lvl:"A2"},
+{nl:"het appartement",en:"the apartment",topic:"Home",lvl:"A1"},
+{nl:"de kamer",en:"the room",topic:"Home",lvl:"A1"},
+{nl:"de keuken",en:"the kitchen",topic:"Home",lvl:"A1"},
+{nl:"de slaapkamer",en:"the bedroom",topic:"Home",lvl:"A1"},
+{nl:"de badkamer",en:"the bathroom",topic:"Home",lvl:"A1"},
+{nl:"de woonkamer",en:"the living room",topic:"Home",lvl:"A1"},
+{nl:"de deur",en:"the door",topic:"Home",lvl:"A1"},
+{nl:"het raam",en:"the window",topic:"Home",lvl:"A1"},
+{nl:"de tafel",en:"the table",topic:"Home",lvl:"A1"},
+{nl:"de stoel",en:"the chair",topic:"Home",lvl:"A1"},
+{nl:"het bed",en:"the bed",topic:"Home",lvl:"A1"},
+{nl:"huren",en:"to rent",topic:"Home",lvl:"A2"},
+{nl:"de huur",en:"the rent",topic:"Home",lvl:"A2"},
+{nl:"de huisbaas",en:"the landlord",topic:"Home",lvl:"A2"},
+{nl:"het huurcontract",en:"the rental contract",topic:"Home",lvl:"A2"},
+{nl:"de verhuizing",en:"the move (house)",topic:"Home",lvl:"A2"},
+{nl:"de tuin",en:"the garden",topic:"Home",lvl:"A1"},
+{nl:"de buurt",en:"the neighbourhood",topic:"Home",lvl:"A2"},
+{nl:"de wijk",en:"the district",topic:"Home",lvl:"A2"},
+
+// ===== Common verbs (A1) =====
+{nl:"zijn",en:"to be",topic:"Common verbs",lvl:"A1"},
+{nl:"hebben",en:"to have",topic:"Common verbs",lvl:"A1"},
+{nl:"gaan",en:"to go",topic:"Common verbs",lvl:"A1"},
+{nl:"komen",en:"to come",topic:"Common verbs",lvl:"A1"},
+{nl:"doen",en:"to do",topic:"Common verbs",lvl:"A1"},
+{nl:"maken",en:"to make",topic:"Common verbs",lvl:"A1"},
+{nl:"zeggen",en:"to say",topic:"Common verbs",lvl:"A1"},
+{nl:"vragen",en:"to ask",topic:"Common verbs",lvl:"A1"},
+{nl:"antwoorden",en:"to answer",topic:"Common verbs",lvl:"A2"},
+{nl:"kunnen",en:"to be able to / can",topic:"Common verbs",lvl:"A1"},
+{nl:"moeten",en:"to have to / must",topic:"Common verbs",lvl:"A1"},
+{nl:"willen",en:"to want",topic:"Common verbs",lvl:"A1"},
+{nl:"mogen",en:"to be allowed to",topic:"Common verbs",lvl:"A2"},
+{nl:"weten",en:"to know (a fact)",topic:"Common verbs",lvl:"A1"},
+{nl:"kennen",en:"to know (a person/place)",topic:"Common verbs",lvl:"A2"},
+{nl:"begrijpen",en:"to understand",topic:"Common verbs",lvl:"A2"},
+{nl:"spreken",en:"to speak",topic:"Common verbs",lvl:"A1"},
+{nl:"praten",en:"to talk",topic:"Common verbs",lvl:"A1"},
+{nl:"schrijven",en:"to write",topic:"Common verbs",lvl:"A1"},
+{nl:"lezen",en:"to read",topic:"Common verbs",lvl:"A1"},
+{nl:"luisteren",en:"to listen",topic:"Common verbs",lvl:"A1"},
+{nl:"kijken",en:"to look / watch",topic:"Common verbs",lvl:"A1"},
+{nl:"helpen",en:"to help",topic:"Common verbs",lvl:"A1"},
+{nl:"werken",en:"to work",topic:"Common verbs",lvl:"A1"},
+{nl:"wonen",en:"to live (reside)",topic:"Common verbs",lvl:"A1"},
+{nl:"leven",en:"to live (be alive)",topic:"Common verbs",lvl:"A2"},
+{nl:"eten",en:"to eat",topic:"Common verbs",lvl:"A1"},
+{nl:"drinken",en:"to drink",topic:"Common verbs",lvl:"A1"},
+{nl:"slapen",en:"to sleep",topic:"Common verbs",lvl:"A1"},
+{nl:"kopen",en:"to buy",topic:"Common verbs",lvl:"A1"},
+{nl:"betalen",en:"to pay",topic:"Common verbs",lvl:"A1"},
+{nl:"beginnen",en:"to begin",topic:"Common verbs",lvl:"A2"},
+{nl:"stoppen",en:"to stop",topic:"Common verbs",lvl:"A2"},
+{nl:"wachten",en:"to wait",topic:"Common verbs",lvl:"A2"},
+{nl:"vinden",en:"to find / think",topic:"Common verbs",lvl:"A2"},
+{nl:"geven",en:"to give",topic:"Common verbs",lvl:"A1"},
+{nl:"nemen",en:"to take",topic:"Common verbs",lvl:"A1"},
+{nl:"brengen",en:"to bring",topic:"Common verbs",lvl:"A2"},
+{nl:"halen",en:"to fetch / collect",topic:"Common verbs",lvl:"A2"},
+
+// ===== Useful adjectives & words (A1/A2) =====
+{nl:"groot",en:"big",topic:"Describing things",lvl:"A1"},
+{nl:"klein",en:"small",topic:"Describing things",lvl:"A1"},
+{nl:"nieuw",en:"new",topic:"Describing things",lvl:"A1"},
+{nl:"oud",en:"old",topic:"Describing things",lvl:"A1"},
+{nl:"mooi",en:"beautiful",topic:"Describing things",lvl:"A1"},
+{nl:"lelijk",en:"ugly",topic:"Describing things",lvl:"A2"},
+{nl:"snel",en:"fast",topic:"Describing things",lvl:"A1"},
+{nl:"langzaam",en:"slow",topic:"Describing things",lvl:"A2"},
+{nl:"makkelijk",en:"easy",topic:"Describing things",lvl:"A1"},
+{nl:"moeilijk",en:"difficult",topic:"Describing things",lvl:"A1"},
+{nl:"belangrijk",en:"important",topic:"Describing things",lvl:"A2"},
+{nl:"warm",en:"warm",topic:"Describing things",lvl:"A1"},
+{nl:"koud",en:"cold",topic:"Describing things",lvl:"A1"},
+{nl:"open",en:"open",topic:"Describing things",lvl:"A1"},
+{nl:"dicht",en:"closed",topic:"Describing things",lvl:"A1"},
+{nl:"vol",en:"full",topic:"Describing things",lvl:"A2"},
+{nl:"leeg",en:"empty",topic:"Describing things",lvl:"A2"},
+{nl:"links",en:"left",topic:"Describing things",lvl:"A1"},
+{nl:"rechts",en:"right",topic:"Describing things",lvl:"A1"},
+{nl:"hier",en:"here",topic:"Describing things",lvl:"A1"},
+{nl:"daar",en:"there",topic:"Describing things",lvl:"A1"},
+{nl:"altijd",en:"always",topic:"Describing things",lvl:"A2"},
+{nl:"nooit",en:"never",topic:"Describing things",lvl:"A2"},
+{nl:"soms",en:"sometimes",topic:"Describing things",lvl:"A2"},
+{nl:"vaak",en:"often",topic:"Describing things",lvl:"A2"},
+
+// ===== Work (A2) =====
+{nl:"het werk",en:"the work",topic:"Work",lvl:"A2"},
+{nl:"de baan",en:"the job",topic:"Work",lvl:"A2"},
+{nl:"de collega",en:"the colleague",topic:"Work",lvl:"A2"},
+{nl:"de werkgever",en:"the employer",topic:"Work",lvl:"A2"},
+{nl:"de werknemer",en:"the employee",topic:"Work",lvl:"A2"},
+{nl:"het salaris",en:"the salary",topic:"Work",lvl:"A2"},
+{nl:"het contract",en:"the contract",topic:"Work",lvl:"A2"},
+{nl:"solliciteren",en:"to apply (for a job)",topic:"Work",lvl:"A2"},
+{nl:"de sollicitatie",en:"the job application",topic:"Work",lvl:"A2"},
+{nl:"de afspraak",en:"the appointment",topic:"Work",lvl:"A2"},
+{nl:"de vergadering",en:"the meeting",topic:"Work",lvl:"A2"},
+{nl:"de pauze",en:"the break",topic:"Work",lvl:"A2"},
+{nl:"de vakantie",en:"the holiday / vacation",topic:"Work",lvl:"A2"},
+{nl:"ziek melden",en:"to call in sick",topic:"Work",lvl:"A2"},
+{nl:"het cv",en:"the CV / résumé",topic:"Work",lvl:"A2"},
+{nl:"de werkdag",en:"the working day",topic:"Work",lvl:"A2"},
+{nl:"het kantoor",en:"the office",topic:"Work",lvl:"A2"},
+{nl:"de baas",en:"the boss",topic:"Work",lvl:"A2"},
+
+// ===== Transport (A2) =====
+{nl:"de trein",en:"the train",topic:"Transport",lvl:"A2"},
+{nl:"de bus",en:"the bus",topic:"Transport",lvl:"A2"},
+{nl:"de tram",en:"the tram",topic:"Transport",lvl:"A2"},
+{nl:"de metro",en:"the metro",topic:"Transport",lvl:"A2"},
+{nl:"de fiets",en:"the bicycle",topic:"Transport",lvl:"A1"},
+{nl:"de auto",en:"the car",topic:"Transport",lvl:"A1"},
+{nl:"lopen",en:"to walk",topic:"Transport",lvl:"A1"},
+{nl:"fietsen",en:"to cycle",topic:"Transport",lvl:"A2"},
+{nl:"rijden",en:"to drive / ride",topic:"Transport",lvl:"A2"},
+{nl:"het station",en:"the station",topic:"Transport",lvl:"A2"},
+{nl:"het perron",en:"the platform",topic:"Transport",lvl:"A2"},
+{nl:"het kaartje",en:"the ticket",topic:"Transport",lvl:"A2"},
+{nl:"de halte",en:"the stop",topic:"Transport",lvl:"A2"},
+{nl:"de OV-chipkaart",en:"the public transport card",topic:"Transport",lvl:"A2"},
+{nl:"rechtsaf",en:"to the right",topic:"Transport",lvl:"A2"},
+{nl:"linksaf",en:"to the left",topic:"Transport",lvl:"A2"},
+{nl:"rechtdoor",en:"straight ahead",topic:"Transport",lvl:"A2"},
+{nl:"de weg",en:"the road / way",topic:"Transport",lvl:"A2"},
+{nl:"de straat",en:"the street",topic:"Transport",lvl:"A1"},
+{nl:"vertrekken",en:"to depart",topic:"Transport",lvl:"A2"},
+{nl:"aankomen",en:"to arrive",topic:"Transport",lvl:"A2"},
+{nl:"overstappen",en:"to change / transfer",topic:"Transport",lvl:"A2"},
+
+// ===== Health (A2) =====
+{nl:"de dokter",en:"the doctor",topic:"Health",lvl:"A2"},
+{nl:"de huisarts",en:"the GP / family doctor",topic:"Health",lvl:"A2"},
+{nl:"de tandarts",en:"the dentist",topic:"Health",lvl:"A2"},
+{nl:"ziek",en:"sick",topic:"Health",lvl:"A1"},
+{nl:"gezond",en:"healthy",topic:"Health",lvl:"A2"},
+{nl:"de pijn",en:"the pain",topic:"Health",lvl:"A2"},
+{nl:"de hoofdpijn",en:"the headache",topic:"Health",lvl:"A2"},
+{nl:"de koorts",en:"the fever",topic:"Health",lvl:"A2"},
+{nl:"de hoest",en:"the cough",topic:"Health",lvl:"A2"},
+{nl:"het ziekenhuis",en:"the hospital",topic:"Health",lvl:"A2"},
+{nl:"de apotheek",en:"the pharmacy",topic:"Health",lvl:"A2"},
+{nl:"het medicijn",en:"the medicine",topic:"Health",lvl:"A2"},
+{nl:"de afspraak maken",en:"to make an appointment",topic:"Health",lvl:"A2"},
+{nl:"de verzekering",en:"the insurance",topic:"Health",lvl:"A2"},
+{nl:"het recept",en:"the prescription",topic:"Health",lvl:"A2"},
+{nl:"beter",en:"better",topic:"Health",lvl:"A1"},
+{nl:"het lichaam",en:"the body",topic:"Health",lvl:"A2"},
+{nl:"het hoofd",en:"the head",topic:"Health",lvl:"A1"},
+{nl:"de hand",en:"the hand",topic:"Health",lvl:"A1"},
+{nl:"de voet",en:"the foot",topic:"Health",lvl:"A1"},
+{nl:"de buik",en:"the belly / stomach",topic:"Health",lvl:"A2"},
+
+// ===== Civic / KNM vocabulary (A2) =====
+{nl:"de gemeente",en:"the municipality",topic:"Civic life",lvl:"A2"},
+{nl:"de overheid",en:"the government",topic:"Civic life",lvl:"A2"},
+{nl:"de Belastingdienst",en:"the Tax Office",topic:"Civic life",lvl:"A2"},
+{nl:"de belasting",en:"the tax",topic:"Civic life",lvl:"A2"},
+{nl:"de toeslag",en:"the benefit / allowance",topic:"Civic life",lvl:"A2"},
+{nl:"de aanvraag",en:"the application / request",topic:"Civic life",lvl:"A2"},
+{nl:"het formulier",en:"the form",topic:"Civic life",lvl:"A2"},
+{nl:"de brief",en:"the letter",topic:"Civic life",lvl:"A1"},
+{nl:"het bewijs",en:"the proof / evidence",topic:"Civic life",lvl:"A2"},
+{nl:"de afspraak",en:"the appointment",topic:"Civic life",lvl:"A2"},
+{nl:"het bezwaar",en:"the objection",topic:"Civic life",lvl:"A2"},
+{nl:"de wet",en:"the law",topic:"Civic life",lvl:"A2"},
+{nl:"de regels",en:"the rules",topic:"Civic life",lvl:"A2"},
+{nl:"verplicht",en:"obligatory / required",topic:"Civic life",lvl:"A2"},
+{nl:"de afzender",en:"the sender",topic:"Civic life",lvl:"A2"},
+{nl:"het BSN",en:"the citizen service number",topic:"Civic life",lvl:"A2"},
+{nl:"de DigiD",en:"the digital ID (login)",topic:"Civic life",lvl:"A2"},
+{nl:"stemmen",en:"to vote",topic:"Civic life",lvl:"A2"},
+{nl:"de verkiezingen",en:"the elections",topic:"Civic life",lvl:"A2"},
+{nl:"de koning",en:"the king",topic:"Civic life",lvl:"A2"},
+{nl:"de school",en:"the school",topic:"Civic life",lvl:"A1"},
+{nl:"de leerplicht",en:"the compulsory education",topic:"Civic life",lvl:"A2"},
+{nl:"het afval",en:"the waste / rubbish",topic:"Civic life",lvl:"A2"},
+{nl:"scheiden",en:"to separate (e.g. waste)",topic:"Civic life",lvl:"A2"},
+{nl:"de zorgverzekering",en:"the health insurance",topic:"Civic life",lvl:"A2"},
+{nl:"het eigen risico",en:"the deductible (own risk)",topic:"Civic life",lvl:"A2"},
+];
+
+// KNM — Knowledge of Dutch Society. 40 Q exam, 26 to pass.
+const KNM = [
+  { q: "Je krijgt een brief van de gemeente. Wat moet je meestal doen?", a: ["De brief lezen en op tijd reageren", "De brief weggooien", "Wachten tot ze bellen", "De brief aan de buurman geven"], correct: 0, why: "Official letters (gemeente, Belastingdienst) usually need a timely response. Ignoring deadlines causes problems." },
+  { q: "Wie is het staatshoofd van Nederland?", a: ["De minister-president", "De koning", "De burgemeester", "De voorzitter"], correct: 1, why: "The Netherlands is a constitutional monarchy; the King is head of state, the minister-president leads the government." },
+  { q: "Waar ga je naartoe als je een klein gezondheidsprobleem hebt?", a: ["Direct naar het ziekenhuis", "Naar de huisarts", "Naar de apotheek zonder afspraak", "Naar de tandarts"], correct: 1, why: "The huisarts (GP) is the first point of contact in Dutch healthcare and refers you onward if needed." },
+  { q: "Wat heb je nodig om te stemmen bij verkiezingen?", a: ["Alleen je paspoort", "Een stempas en een identiteitsbewijs", "Niets", "Een rijbewijs van de gemeente"], correct: 1, why: "You receive a stempas (voting pass) by post and must bring valid ID to vote." },
+  { q: "Wanneer moet je in Nederland je afval scheiden?", a: ["Nooit, dat doet de gemeente", "Vaak; afval scheiden is normaal en meestal verplicht", "Alleen op zondag", "Alleen in de zomer"], correct: 1, why: "Separating waste (papier, glas, GFT, restafval) is standard practice and often required by the gemeente." },
+  { q: "Een collega is jarig op het werk. Wat is gebruikelijk?", a: ["Je negeert het", "Je feliciteert hem/haar", "Je geeft hem vrij", "Je stuurt een brief"], correct: 1, why: "Congratulating someone on their birthday ('gefeliciteerd') is normal Dutch social behaviour." },
+  { q: "Je kind moet naar school. Vanaf welke leeftijd is school verplicht (leerplicht)?", a: ["Vanaf 3 jaar", "Vanaf 5 jaar", "Vanaf 8 jaar", "Vanaf 12 jaar"], correct: 1, why: "Compulsory education (leerplicht) starts at age 5, though most children start at 4." },
+  { q: "Wat doe je als je het niet eens bent met een beslissing van de gemeente?", a: ["Niets", "Je kunt bezwaar maken", "Je verhuist", "Je belt de koning"], correct: 1, why: "You have the right to lodge an objection (bezwaar) against official decisions, usually within 6 weeks." },
+  { q: "Hoe betaal je meestal in een Nederlandse supermarkt?", a: ["Alleen met contant geld", "Met pinpas of mobiel", "Met een cheque", "Je betaalt later per brief"], correct: 1, why: "The Netherlands is largely cashless; paying by pin (debit card) or phone is the norm, and some shops are card-only." },
+  { q: "Wat is een 'eigen risico' in de zorgverzekering?", a: ["Geld dat je zelf eerst betaalt voor zorg", "Een gratis extra", "Een boete", "Een korting"], correct: 0, why: "The eigen risico is the deductible you pay yourself each year before insurance covers most care." },
+  { q: "Je buren maken 's nachts veel lawaai. Wat is een goede eerste stap?", a: ["Direct de politie bellen", "Rustig met de buren praten", "Zelf ook lawaai maken", "Verhuizen"], correct: 1, why: "Talking calmly with neighbours first is the expected, polite approach before escalating." },
+  { q: "Welke taal spreekt men officieel in Nederland?", a: ["Engels", "Duits", "Nederlands", "Alleen Fries"], correct: 2, why: "Dutch is the official national language; Frisian is an official language in the province of Friesland." },
+  { q: "Wat moet je hebben voordat je in Nederland gaat werken?", a: ["Niets", "Een BSN-nummer", "Een huis kopen", "Een afspraak met de koning"], correct: 1, why: "You need a BSN (citizen service number) to work, pay taxes and use public services." },
+  { q: "Wat is de rol van de Belastingdienst?", a: ["Belastingen en toeslagen regelen", "Wegen bouwen", "Paspoorten geven", "Scholen besturen"], correct: 0, why: "The Belastingdienst handles taxes and benefits (toeslagen) such as huurtoeslag and zorgtoeslag." },
+  { q: "Hoe log je meestal in bij de overheid online (bijv. DigiD)?", a: ["Met je bankpas", "Met je DigiD", "Met je e-mail van werk", "Dat kan niet online"], correct: 1, why: "DigiD is the national digital login for government and healthcare services." },
+  { q: "Je wilt een afspraak bij de gemeente (bijv. paspoort). Wat doe je meestal eerst?", a: ["Gewoon langsgaan", "Online een afspraak maken", "Een brief sturen", "Wachten op een telefoontje"], correct: 1, why: "Most gemeente services work by appointment, usually booked online in advance." },
+  { q: "Wat betekent 'verplicht'?", a: ["Het mag", "Het moet", "Het kan", "Het is gratis"], correct: 1, why: "'Verplicht' means obligatory — you must do it, e.g. inburgeren or insuring your health." },
+  { q: "Iedereen die in Nederland woont moet een zorgverzekering hebben. Waar of niet waar?", a: ["Waar", "Niet waar", "Alleen voor kinderen", "Alleen voor werkenden"], correct: 0, why: "Basic health insurance (basisverzekering) is mandatory for residents of the Netherlands." },
+];
+
+const READING = [
+  {
+    text: "Beste meneer Jansen,\n\nUw pakket kon vandaag niet bezorgd worden, omdat er niemand thuis was. U kunt het pakket ophalen bij het afhaalpunt in de Albert Heijn aan de Dorpsstraat. Neem een geldig identiteitsbewijs mee. Het pakket ligt daar klaar tot vrijdag.\n\nMet vriendelijke groet,\nPostNL",
+    q: "Waar kan meneer Jansen het pakket ophalen?",
+    a: ["Bij het postkantoor", "Bij de Albert Heijn aan de Dorpsstraat", "Bij de buren", "Op het station"],
+    correct: 1,
+    why: "The text says the parcel can be collected at the pickup point in the Albert Heijn on Dorpsstraat."
+  },
+  {
+    text: "Sportschool FitNu\n\nNieuwe openingstijden vanaf 1 maart:\nMaandag t/m vrijdag: 07.00 – 22.00 uur\nZaterdag en zondag: 09.00 – 18.00 uur\n\nOp feestdagen zijn wij gesloten. Leden kunnen gratis gebruikmaken van de sauna.",
+    q: "Hoe laat opent de sportschool op zaterdag?",
+    a: ["07.00 uur", "09.00 uur", "18.00 uur", "22.00 uur"],
+    correct: 1,
+    why: "Saturday and Sunday hours are 09.00–18.00, so it opens at 9."
+  },
+  {
+    text: "Aan alle bewoners,\n\nOp dinsdag 14 mei wordt er onderhoud aan de lift uitgevoerd. De lift is die dag van 08.00 tot 16.00 uur buiten gebruik. Gebruik in die periode de trap. Onze excuses voor het ongemak.\n\nDe beheerder",
+    q: "Wat moeten de bewoners op 14 mei doen?",
+    a: ["De lift gebruiken", "De trap gebruiken", "Thuisblijven", "De beheerder bellen"],
+    correct: 1,
+    why: "The lift is out of service that day, so residents should use the stairs (trap)."
+  },
+  {
+    text: "Uitnodiging\n\nBeste ouders,\n\nOp woensdag 5 juni is er een ouderavond op school. De avond begint om 19.00 uur in het lokaal van uw kind. U kunt met de leraar praten over hoe het met uw kind gaat. Aanmelden kan via de mail.\n\nMet vriendelijke groet,\nDe directeur",
+    q: "Waarom is de ouderavond?",
+    a: ["Om te sporten", "Om met de leraar te praten over het kind", "Om eten te kopen", "Om geld te betalen"],
+    correct: 1,
+    why: "A parents' evening (ouderavond) is to speak with the teacher about how the child is doing."
+  },
+  {
+    text: "Bibliotheek Amstelveen\n\nU heeft drie boeken geleend. De boeken moeten vóór 20 april terug zijn. Bent u te laat? Dan betaalt u € 0,20 per dag per boek. U kunt de boeken ook online verlengen via onze website.",
+    q: "Wat gebeurt er als u de boeken te laat terugbrengt?",
+    a: ["Niets", "U betaalt € 0,20 per dag per boek", "U mag geen boeken meer lenen", "U krijgt een nieuw boek"],
+    correct: 1,
+    why: "Late returns cost €0.20 per day per book; you can also renew online to avoid this."
+  },
+];
+
+const LISTENING = [
+  {
+    transcript: "Goedemorgen, met de praktijk van dokter De Vries. U spreekt met de assistente. Wilt u een afspraak maken? Dat kan vandaag om half drie of morgen om tien uur. Wat komt u het beste uit?",
+    q: "Wanneer kan de beller een afspraak maken?",
+    a: ["Vandaag om half twee", "Vandaag om half drie of morgen om tien uur", "Morgen om half drie", "Volgende week"],
+    correct: 1,
+    why: "The assistant offers today at 2:30 (half drie) or tomorrow at 10:00."
+  },
+  {
+    transcript: "Dames en heren, door werkzaamheden rijdt de trein naar Utrecht vandaag niet. Wij adviseren u om de bus te nemen vanaf het busstation voor het station. De bus vertrekt elk kwartier.",
+    q: "Waarom rijdt de trein naar Utrecht niet?",
+    a: ["Door slecht weer", "Door werkzaamheden", "Door een staking", "Door een feestdag"],
+    correct: 1,
+    why: "The announcement says the train isn't running due to engineering works (werkzaamheden)."
+  },
+  {
+    transcript: "Hoi, met Sanne. Ik bel even over onze afspraak van vanavond. Ik kan helaas niet om zeven uur, want ik moet langer werken. Kunnen we het naar acht uur verzetten? Laat het me weten. Bedankt, doei!",
+    q: "Wat wil Sanne?",
+    a: ["De afspraak afzeggen", "De afspraak verzetten naar acht uur", "Eerder afspreken", "Niet meer afspreken"],
+    correct: 1,
+    why: "Sanne can't make 7 o'clock and asks to move (verzetten) the meeting to 8."
+  },
+  {
+    transcript: "Welkom bij de supermarkt. Let op: vandaag is er korting op groente en fruit. Bij twee kilo appels krijgt u de derde kilo gratis. De aanbieding geldt alleen vandaag.",
+    q: "Welke aanbieding is er vandaag?",
+    a: ["Korting op vlees", "Derde kilo appels gratis", "Gratis brood", "Korting op koffie"],
+    correct: 1,
+    why: "The offer is on fruit and vegetables: buy two kilos of apples, get the third free — today only."
+  },
+];
+
+const WRITING = [
+  { title: "Briefje aan de buurman", prompt: "Schrijf een kort briefje aan je buurman. Je wilt zijn boormachine lenen voor het ophangen van een schilderij. Vraag of dat mag en wanneer je hem kunt ophalen. (ca. 40 woorden)", checklist: ["Begroeting (Beste / Hallo ...)", "Reden: schilderij ophangen", "Vraag: boormachine lenen", "Wanneer ophalen?", "Afsluiting + je naam"] },
+  { title: "E-mail: afspraak verzetten", prompt: "Je hebt morgen een afspraak bij de tandarts, maar je kunt niet komen. Schrijf een e-mail om de afspraak te verzetten naar een andere dag. (ca. 50 woorden)", checklist: ["Aanhef", "Je hebt een afspraak (noem dag/tijd)", "Je kunt niet komen + reden", "Vraag om een nieuwe afspraak", "Vriendelijke afsluiting"] },
+  { title: "Formulier: aanmelding bibliotheek", prompt: "Vul in eigen woorden in waarom je lid wilt worden van de bibliotheek en welke boeken je graag leest. (ca. 30 woorden)", checklist: ["Waarom lid worden", "Wat je graag leest", "Correcte, hele zinnen"] },
+  { title: "Bericht: ziekmelden op werk", prompt: "Je bent ziek en kunt niet werken. Schrijf een kort bericht aan je werkgever. Zeg dat je ziek bent en wanneer je weer denkt te komen. (ca. 40 woorden)", checklist: ["Aanhef", "Je bent ziek", "Vandaag niet op werk", "Wanneer je weer komt", "Afsluiting + naam"] },
+];
+
+const SPEAKING = [
+  "Stel jezelf voor: naam, waar je woont, en wat je doet.",
+  "Je bent in een restaurant. Bestel eten en drinken bij de ober.",
+  "Vraag op straat de weg naar het station.",
+  "Bel de huisarts en maak een afspraak omdat je hoofdpijn hebt.",
+  "Vertel over je familie: wie horen erbij?",
+  "Je koopt een treinkaartje. Vraag naar de prijs en het perron.",
+  "Vertel wat je gisteren hebt gedaan.",
+  "Je wilt een product ruilen in de winkel. Leg uit waarom.",
+  "Beschrijf je huis: hoeveel kamers en hoe ziet het eruit?",
+  "Nodig een vriend uit om koffie te drinken. Spreek een dag en tijd af.",
+];
+
+const ROADMAP = [
+  { wk: "1–4", focus: "Greetings, numbers, time, intro yourself", part: "Spreken + vocab" },
+  { wk: "5–8", focus: "Family, home & housing vocabulary", part: "Lezen" },
+  { wk: "9–12", focus: "Food, shopping, paying, the supermarket", part: "Luisteren" },
+  { wk: "13–16", focus: "Work, appointments, simple emails", part: "Schrijven" },
+  { wk: "17–20", focus: "Transport, directions, the doctor", part: "Spreken + Luisteren" },
+  { wk: "21–24", focus: "KNM: government, healthcare, school, voting", part: "KNM" },
+  { wk: "25–28", focus: "Full mock exams per skill, fix weak spots", part: "All skills" },
+  { wk: "29–32", focus: "Timed mocks, exam-day routine, book the real exam", part: "Final prep" },
+];
+
+/* ====== Level mapping ====== */
+function vocabForLevel(lvl){
+  // A1 deck = words tagged A1. A2 deck = everything (A1 + A2-tagged).
+  return lvl === "A1" ? VOCAB.filter(v=>v.lvl==="A1") : VOCAB.slice();
+}
+
+/* Build a quick lookup of single Dutch words -> English (strip articles). */
+const GLOSS = (()=>{
+  const m={};
+  VOCAB.forEach(v=>{
+    const key=v.nl.replace(/^(de|het|een)\s+/i,"").toLowerCase();
+    if(!m[key]) m[key]=v.en;
+    if(!m[v.nl.toLowerCase()]) m[v.nl.toLowerCase()]=v.en;
+  });
+  return m;
+})();
+/* From a chunk of Dutch text, pull the dictionary words found in it. */
+function glossFrom(text){
+  const seen=new Set(), out=[];
+  (text.toLowerCase().match(/[a-zà-ÿ]+/gi)||[]).forEach(w=>{
+    if(GLOSS[w] && !seen.has(w)){ seen.add(w); out.push([w,GLOSS[w]]); }
+  });
+  return out.slice(0,8); // keep it tidy
+}
+
+/* ====== State & persistence ======
+   Single shareable file: state lives in memory + a JSON snapshot you can
+   export/import. (Browser storage APIs aren't used so the file runs anywhere.) */
+const PROFILES = ["Nish","Partner"];
+function freshProfile(){
+  return {
+    level:"A1",
+    streak:0, lastStudy:null,
+    srs:{},                 // key nl -> {ef,interval,due,reps}
+    checklist:{},           // weekly checklist booleans
+    quiz:{KNM:null,READING:null,LISTENING:null}, // last scores
+    writing:{},             // task title -> saved text
+    roadmapDone:{}          // week label -> bool
+  };
+}
+function freshState(){
+  return { active:"Nish", profiles:{ Nish:freshProfile(), Partner:freshProfile() } };
+}
+let STATE = freshState();
+function P(){ return STATE.profiles[STATE.active]; }
+
+/* ====== Auto-save ======
+   Saves to the device automatically after every change. Uses localStorage
+   when the browser allows it (it does once the file is downloaded/opened
+   normally); falls back silently to memory-only if storage is blocked
+   (e.g. inside a sandboxed preview). Export/Import remains as a manual
+   backup and for moving to a new phone. */
+const STORE_KEY = "inburgering_trainer_v1";
+let STORAGE_OK = false;
+try {
+  const t = "__t"; window.localStorage.setItem(t,"1"); window.localStorage.removeItem(t);
+  STORAGE_OK = true;
+} catch(e){ STORAGE_OK = false; }
+
+function snapshot(){ return JSON.stringify(STATE); }
+
+function save(){               // called after every state mutation
+  if(!STORAGE_OK) return;
+  try { window.localStorage.setItem(STORE_KEY, snapshot()); } catch(e){}
+}
+function restore(){            // called once on load
+  if(!STORAGE_OK) return false;
+  try {
+    const raw = window.localStorage.getItem(STORE_KEY);
+    if(raw){ const obj = JSON.parse(raw); if(obj && obj.profiles){ STATE = obj; return true; } }
+  } catch(e){}
+  return false;
+}
+function loadSnapshot(json){   // used by Import
+  try{
+    const obj = JSON.parse(json);
+    if(obj && obj.profiles){ STATE = obj; save(); return true; }
+  }catch(e){}
+  return false;
+}
+function wipe(){               // reset this device
+  STATE = freshState();
+  if(STORAGE_OK){ try{ window.localStorage.removeItem(STORE_KEY); }catch(e){} }
+}
+
+/* ====== Spaced repetition (SM-2, simplified) ====== */
+const DAY = 86400000;
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function sched(card, grade){ // grade: 0 again, 1 hard, 2 good
+  if(!card.ef) card.ef = 2.5;
+  if(grade === 0){ card.reps = 0; card.interval = 0; }
+  else {
+    card.reps = (card.reps||0) + 1;
+    if(card.reps === 1) card.interval = 1;
+    else if(card.reps === 2) card.interval = grade===1 ? 2 : 4;
+    else card.interval = Math.round(card.interval * (grade===1 ? 1.3 : card.ef));
+    const q = grade===1 ? 3 : 5;
+    card.ef = Math.max(1.3, card.ef + (0.1 - (5-q)*(0.08+(5-q)*0.02)));
+  }
+  card.due = Date.now() + card.interval*DAY;
+  return card;
+}
+function dueCards(){
+  const deck = vocabForLevel(P().level);
+  const srs = P().srs;
+  const now = Date.now();
+  const due = [], fresh = [];
+  for(const v of deck){
+    const c = srs[v.nl];
+    if(!c) fresh.push(v);
+    else if(c.due <= now) due.push(v);
+  }
+  return {due, fresh, total:deck.length,
+          learned:Object.keys(srs).filter(k=>deck.find(v=>v.nl===k)).length};
+}
+
+/* ====== Streak ====== */
+function markStudied(){
+  const p = P(), t = todayStr();
+  if(p.lastStudy === t) return;
+  const y = new Date(Date.now()-DAY).toISOString().slice(0,10);
+  p.streak = (p.lastStudy === y) ? p.streak+1 : 1;
+  p.lastStudy = t;
+}
+
+/* ====== Rendering helpers ====== */
+const $ = s => document.querySelector(s);
+const view = () => $("#view");
+function h(html){ const d=document.createElement("div"); d.innerHTML=html.trim(); return d.firstChild; }
+
+let TAB = "home";
+const TABS = [
+  {id:"home",   label:"Overview"},
+  {id:"cards",  label:"Flashcards"},
+  {id:"words",  label:"Words"},
+  {id:"knm",    label:"KNM", lvl:"A2"},
+  {id:"reading",label:"Lezen", lvl:"A2"},
+  {id:"listen", label:"Luisteren", lvl:"A2"},
+  {id:"write",  label:"Schrijven"},
+  {id:"speak",  label:"Spreken"},
+  {id:"plan",   label:"32-wk plan"},
+];
+function tabLocked(t){ return t.lvl === "A2" && P().level === "A1"; }
+
+/* ====== Build chrome ====== */
+function renderChrome(){
+  // greeting
+  const hrs = new Date().getHours();
+  $("#greet").textContent = (hrs<12?"Goedemorgen":hrs<18?"Goedemiddag":"Goedenavond") + " 👋";
+  $("#subline").textContent = STATE.active + " · level " + P().level +
+      " · " + (P().level==="A1"?"building the foundation":"exam-format practice");
+
+  // profile segment
+  const ps = $("#profSeg"); ps.innerHTML="";
+  PROFILES.forEach(name=>{
+    const b=h(`<button>${name}</button>`);
+    if(name===STATE.active) b.classList.add("on");
+    b.onclick=()=>{ STATE.active=name; WORDS_Q=""; renderAll(); };
+    ps.appendChild(b);
+  });
+  // level segment
+  $("#lvlSeg").querySelectorAll("button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.lvl===P().level);
+    b.onclick=()=>{ P().level=b.dataset.lvl; WORDS_Q="";
+      if(tabLocked(TABS.find(t=>t.id===TAB))) TAB="home";
+      renderAll(); };
+  });
+  // tabs
+  const tn=$("#tabs"); tn.innerHTML="";
+  TABS.forEach(t=>{
+    const locked=tabLocked(t);
+    const el=h(`<button class="tab">${t.label}${locked?' <span class="lock">A2</span>':''}</button>`);
+    if(t.id===TAB) el.classList.add("on");
+    el.onclick=()=>{ if(locked){ flashLevelHint(); return; } TAB=t.id; renderAll(); };
+    tn.appendChild(el);
+  });
+}
+function flashLevelHint(){
+  const s=$("#lvlSeg"); s.style.transition="transform .12s"; s.style.transform="scale(1.06)";
+  setTimeout(()=>s.style.transform="",140);
+}
+
+/* ====== Sections ====== */
+function renderHome(){
+  const {due,fresh,total,learned}=dueCards();
+  const p=P();
+  const knm=p.quiz.KNM, rd=p.quiz.READING, ls=p.quiz.LISTENING;
+  view().innerHTML="";
+  view().appendChild(h(`
+    <section class="card">
+      <div class="eyebrow">Today</div>
+      <h2 style="margin:4px 0 12px">Your study board</h2>
+      <div class="stats">
+        <div class="stat"><div class="n">${p.streak}</div><div class="l">day streak</div></div>
+        <div class="stat"><div class="n">${learned}/${total}</div><div class="l">words learned (${p.level})</div></div>
+        <div class="stat"><div class="n">${due.length+fresh.length}</div><div class="l">cards to do</div></div>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <button class="btn signal" id="goCards">Start ${due.length+fresh.length} cards →</button>
+        <button class="btn ghost" id="goPlan">View plan</button>
+      </div>
+    </section>
+  `));
+
+  // exam readiness only meaningful at A2
+  if(p.level==="A2"){
+    const line=(name,res,pass,max)=>{
+      const pct=res?Math.round(res.score/res.total*100):0;
+      const ok=res && res.score>=pass;
+      return `<div class="rail">
+        <span>${name}</span>
+        <div class="track"><div class="fill" style="width:${pct}%;${ok?'background:linear-gradient(90deg,#1f9d6b,#43c98c)':''}"></div></div>
+        <span class="pct">${res?res.score+'/'+res.total:'–'}</span>
+      </div>`;
+    };
+    view().appendChild(h(`
+      <section class="card">
+        <div class="eyebrow">Exam readiness</div>
+        <h2 style="margin:4px 0 10px">Last mock scores</h2>
+        ${line("KNM (26)",knm,26,40)}
+        ${line("Lezen (17)",rd,17,25)}
+        ${line("Luisteren (17)",ls,17,25)}
+        <p class="tiny" style="margin-top:8px">Green = at or above the official pass mark. Retake any section anytime.</p>
+      </section>
+    `));
+  }
+
+  // weekly checklist
+  const items = p.level==="A1"
+    ? ["10 new words","Review flashcards","1 writing exercise","Practice speaking aloud","5 min listening (YouTube: Easy Dutch)"]
+    : ["Review 50 words","1 KNM practice set","1 reading exercise","1 listening exercise","1 writing task","Speaking: 2 prompts"];
+  const wrap=h(`<section class="card"><div class="eyebrow">This week</div><h2 style="margin:4px 0 10px">Checklist (${STATE.active})</h2></section>`);
+  items.forEach((it,i)=>{
+    const key=p.level+"-"+i;
+    const done=!!p.checklist[key];
+    const row=h(`<label class="check ${done?'done':''}"><input type="checkbox" ${done?'checked':''}><span>${it}</span></label>`);
+    row.querySelector("input").onchange=e=>{ p.checklist[key]=e.target.checked; save(); renderHome(); };
+    wrap.appendChild(row);
+  });
+  view().appendChild(wrap);
+
+  // data / sharing
+  view().appendChild(h(`
+    <section class="card">
+      <div class="eyebrow">Saving</div>
+      <h2 style="margin:4px 0 8px">${STORAGE_OK ? "Auto-save is on" : "Auto-save unavailable here"}</h2>
+      <p class="muted" style="margin:0 0 12px">${STORAGE_OK
+        ? "Your progress saves to this device automatically and will be here when you reopen the file. Export only if you want a backup or to move to a new phone."
+        : "This preview can't save to the device. Download/open the file normally and auto-save turns on. For now, use Export to keep your progress."}</p>
+      <div class="row">
+        <button class="btn ghost" id="exp">⤓ Export backup</button>
+        <button class="btn ghost" id="imp">⤒ Import backup</button>
+        <button class="btn ghost" id="rst" style="color:var(--bad)">Reset device</button>
+      </div>
+      <input type="file" id="fileIn" accept="application/json" hidden>
+    </section>
+  `));
+
+  $("#goCards").onclick=()=>{ TAB="cards"; renderAll(); };
+  $("#goPlan").onclick=()=>{ TAB="plan"; renderAll(); };
+  $("#exp").onclick=exportSnap;
+  $("#imp").onclick=()=>$("#fileIn").click();
+  $("#fileIn").onchange=importSnap;
+  $("#rst").onclick=()=>{ if(confirm("Reset all progress on this device for both profiles? Export first if you want a backup.")){ wipe(); renderAll(); } };
+}
+
+/* ---- Flashcards ---- */
+let CARD=null, FLIP=false, QUEUE=[];
+function buildQueue(){
+  const {due,fresh}=dueCards();
+  QUEUE=[...due, ...fresh.slice(0,12)]; // cap new cards per session
+}
+function renderCards(){
+  if(!QUEUE.length) buildQueue();
+  view().innerHTML="";
+  if(!QUEUE.length){
+    view().appendChild(h(`<section class="card"><div class="locked-note"><div class="big">✓</div><b>All caught up!</b><p class="muted">No cards due right now. New words unlock over time, or switch level to ${P().level==="A1"?"A2":"A1"} for more.</p></div></section>`));
+    return;
+  }
+  CARD = QUEUE[0]; FLIP=false;
+  const idx = vocabForLevel(P().level).length;
+  view().appendChild(h(`
+    <section class="card">
+      <div class="eyebrow">Flashcard · ${QUEUE.length} in queue</div>
+      <div class="flash" style="margin:12px 0">
+        <div class="flash-inner" id="fi">
+          <div class="face front">
+            <div class="topic">${CARD.topic}</div>
+            <div class="word">${CARD.nl}</div>
+            <div class="hint">tap to flip</div>
+          </div>
+          <div class="face back">
+            <div class="topic">English</div>
+            <div class="word">${CARD.en}</div>
+            <div class="hint">how well did you know it?</div>
+          </div>
+        </div>
+      </div>
+      <div id="gradeBox"></div>
+    </section>
+  `));
+  const fi=$("#fi");
+  fi.onclick=()=>{ FLIP=!FLIP; fi.classList.toggle("flip",FLIP); showGrade(); };
+}
+function showGrade(){
+  const box=$("#gradeBox"); if(!box) return;
+  if(!FLIP){ box.innerHTML=`<p class="tiny" style="text-align:center">Tap the card to see the answer.</p>`; return; }
+  box.innerHTML=`<div class="grade">
+    <button class="g-again">Again</button>
+    <button class="g-hard">Hard</button>
+    <button class="g-good">Good</button>
+  </div>`;
+  const [a,hd,g]=box.querySelectorAll("button");
+  a.onclick=()=>grade(0); hd.onclick=()=>grade(1); g.onclick=()=>grade(2);
+}
+function grade(gr){
+  const srs=P().srs;
+  srs[CARD.nl]=sched(srs[CARD.nl]||{}, gr);
+  markStudied();
+  QUEUE.shift();
+  if(gr===0) QUEUE.push(CARD); // see again this session
+  save();
+  renderCards();
+  renderChrome();
+}
+
+/* ---- Quiz engine (KNM / Reading / Listening) ---- */
+function quizSection(kind){
+  const data = kind==="KNM"?KNM : kind==="READING"?READING : LISTENING;
+  const passMark = kind==="KNM"?26 : 17; // shown scaled to set length
+  let i=0, score=0, answered=false;
+  view().innerHTML="";
+  const card=h(`<section class="card"><div class="eyebrow">${kind==="KNM"?"KNM · knowledge of Dutch society":kind==="READING"?"Lezen · reading":"Luisteren · listening"}</div><div id="qbody"></div></section>`);
+  view().appendChild(card);
+  const body=card.querySelector("#qbody");
+
+  function step(){
+    answered=false;
+    if(i>=data.length){
+      const p=P();
+      p.quiz[kind]={score, total:data.length, when:todayStr()}; save();
+      const realPass = Math.round(passMark/(kind==="KNM"?40:25)*data.length);
+      const ok = score>=realPass;
+      body.innerHTML=`
+        <h2 style="margin:6px 0 8px">Done — ${score}/${data.length}</h2>
+        <span class="passbar ${ok?'pass':'fail'}">${ok?'Above':'Below'} the pass mark (≈${realPass}/${data.length} in this set)</span>
+        <p class="muted" style="margin-top:12px">On the real exam you need ${kind==="KNM"?"26/40":"17/25"}. This is a short practice set — keep retaking to lock it in.</p>
+        <button class="btn block signal" style="margin-top:12px" id="again">Practice again</button>`;
+      body.querySelector("#again").onclick=()=>{ i=0;score=0;step(); };
+      markStudied(); renderChrome();
+      return;
+    }
+    const it=data[i];
+    const passage = kind==="READING" ? `<div class="passage">${it.text}</div>`
+      : kind==="LISTENING" ? `<div class="passage" id="tr">🔊 ${it.transcript}</div>
+          <button class="btn ghost sm" id="play" style="margin-bottom:12px">▶︎ Play (text-to-speech)</button>` : "";
+    const glossSrc = (it.text||"") + " " + (it.transcript||"") + " " + it.q + " " + it.a.join(" ");
+    const gl = glossFrom(glossSrc);
+    const glossStrip = gl.length ? `<details class="gloss"><summary>Key words (${gl.length})</summary>
+        <div class="glist">${gl.map(([n,e])=>`<span class="gitem"><b>${n}</b> ${e}</span>`).join("")}</div></details>` : "";
+    body.innerHTML=`
+      <div class="tiny" style="margin:4px 0 8px">Question ${i+1} / ${data.length}</div>
+      ${passage}
+      <h2 style="font-size:16px;margin:0 0 10px">${it.q}</h2>
+      ${glossStrip}
+      <div id="opts"></div>
+      <div id="fb"></div>`;
+    if(kind==="LISTENING"){
+      const pb=body.querySelector("#play");
+      pb.onclick=()=>speak(it.transcript);
+    }
+    const opts=body.querySelector("#opts");
+    it.a.forEach((opt,oi)=>{
+      const b=h(`<button class="opt">${opt}</button>`);
+      b.onclick=()=>{
+        if(answered) return; answered=true;
+        const all=opts.querySelectorAll(".opt");
+        all.forEach((x,xi)=>{
+          if(xi===it.correct) x.classList.add("correct");
+          else if(xi===oi) x.classList.add("wrong");
+          else x.classList.add("dim");
+        });
+        if(oi===it.correct) score++;
+        body.querySelector("#fb").innerHTML=`<div class="why"><b>${oi===it.correct?'Correct!':'Not quite.'}</b> ${it.why}</div>
+          <button class="btn block" style="margin-top:12px" id="nx">${i+1<data.length?'Next →':'Result →'}</button>`;
+        body.querySelector("#nx").onclick=()=>{ i++; step(); };
+      };
+      opts.appendChild(b);
+    });
+  }
+  step();
+}
+
+/* Text-to-speech for listening practice (uses device Dutch voice if present) */
+function speak(text){
+  if(!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="nl-NL"; u.rate=.92;
+  const nl=speechSynthesis.getVoices().find(v=>v.lang.startsWith("nl"));
+  if(nl) u.voice=nl;
+  speechSynthesis.speak(u);
+}
+
+/* ---- Writing ---- */
+function renderWrite(){
+  view().innerHTML="";
+  view().appendChild(h(`<section class="card"><div class="eyebrow">Schrijven · writing</div><h2 style="margin:4px 0 8px">Writing tasks</h2><p class="muted" style="margin:0 0 6px">A2 exam: 4 tasks in 40 min — one form plus short texts (emails, notes). Drafts save in your profile.</p></section>`));
+  WRITING.forEach((t,ti)=>{
+    const saved=P().writing[t.title]||"";
+    const gl=glossFrom(t.prompt+" "+t.title);
+    const glossStrip = gl.length ? `<details class="gloss" style="margin:0 0 10px"><summary>Key words (${gl.length})</summary><div class="glist">${gl.map(([n,e])=>`<span class="gitem"><b>${n}</b> ${e}</span>`).join("")}</div></details>` : "";
+    const card=h(`<section class="card">
+      <h2 style="font-size:16px">${t.title}</h2>
+      <p class="muted" style="margin:6px 0 10px">${t.prompt}</p>
+      ${glossStrip}
+      <details style="margin-bottom:10px"><summary class="tiny" style="cursor:pointer;font-weight:600">Show checklist</summary>
+        <ul class="tiny" style="margin:8px 0 0;padding-left:18px">${t.checklist.map(c=>`<li>${c}</li>`).join("")}</ul></details>
+      <textarea class="write" placeholder="Write your answer in Dutch…">${saved}</textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm" data-save="${ti}">Save</button>
+        <span class="tiny" data-count="${ti}" style="align-self:center"></span>
+      </div>
+    </section>`);
+    const ta=card.querySelector("textarea");
+    const cnt=card.querySelector(`[data-count="${ti}"]`);
+    const upd=()=>cnt.textContent=ta.value.trim().split(/\s+/).filter(Boolean).length+" words";
+    ta.oninput=upd; upd();
+    card.querySelector(`[data-save="${ti}"]`).onclick=()=>{
+      P().writing[t.title]=ta.value; markStudied(); save(); renderChrome();
+      cnt.textContent="✓ saved ("+ta.value.trim().split(/\s+/).filter(Boolean).length+" words)";
+    };
+    view().appendChild(card);
+  });
+}
+
+/* ---- Speaking ---- */
+function renderSpeak(){
+  let i=Math.floor(Math.random()*SPEAKING.length);
+  view().innerHTML="";
+  const glStrip=p=>{ const gl=glossFrom(p); return gl.length?`<details class="gloss" style="margin-top:10px"><summary>Key words (${gl.length})</summary><div class="glist">${gl.map(([n,e])=>`<span class="gitem"><b>${n}</b> ${e}</span>`).join("")}</div></details>`:""; };
+  const card=h(`<section class="card">
+    <div class="eyebrow">Spreken · speaking</div>
+    <h2 style="margin:4px 0 10px">Speaking prompt</h2>
+    <div class="speak-prompt" id="sp">${SPEAKING[i]}</div>
+    <div id="spGloss">${glStrip(SPEAKING[i])}</div>
+    <p class="muted">Read it, then speak your answer out loud for ~1 minute — same as the exam's timed format. Tap to hear a model of the prompt, or get a new one.</p>
+    <div class="row" style="margin-top:12px">
+      <button class="btn signal" id="next">New prompt</button>
+      <button class="btn ghost" id="say">🔊 Play</button>
+    </div>
+  </section>`);
+  view().appendChild(card);
+  card.querySelector("#next").onclick=()=>{ i=(i+1)%SPEAKING.length; card.querySelector("#sp").textContent=SPEAKING[i]; card.querySelector("#spGloss").innerHTML=glStrip(SPEAKING[i]); markStudied(); renderChrome(); };
+  card.querySelector("#say").onclick=()=>speak(card.querySelector("#sp").textContent);
+}
+
+/* ---- Words: bilingual glossary, both directions visible ---- */
+let WORDS_DIR = "nl";    // "nl" = Dutch first, "en" = English first
+let WORDS_Q = "";
+function renderWords(){
+  const deck = vocabForLevel(P().level);
+  const srs = P().srs;
+  // group by topic, preserve first-seen order
+  const order=[], groups={};
+  deck.forEach(v=>{ if(!groups[v.topic]){ groups[v.topic]=[]; order.push(v.topic);} groups[v.topic].push(v); });
+
+  view().innerHTML="";
+  const head=h(`
+    <section class="card">
+      <div class="eyebrow">Words · ${deck.length} in ${P().level}</div>
+      <h2 style="margin:4px 0 10px">Glossary</h2>
+      <p class="muted" style="margin:0 0 12px">Every word both ways: Dutch and English side by side. Search either language. Tap 🔊 to hear it.</p>
+      <div class="seg" id="dirSeg" style="background:var(--paper);border:1px solid var(--line)">
+        <button data-dir="nl">Dutch → English</button>
+        <button data-dir="en">English → Dutch</button>
+      </div>
+      <input id="wsearch" placeholder="Search a word…" value="${WORDS_Q.replace(/"/g,'&quot;')}"
+        style="width:100%;margin-top:10px;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;">
+    </section>`);
+  view().appendChild(head);
+
+  // direction toggle — repaint list in place, keep search box intact
+  head.querySelectorAll("#dirSeg button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.dir===WORDS_DIR);
+    b.onclick=()=>{
+      WORDS_DIR=b.dataset.dir;
+      head.querySelectorAll("#dirSeg button").forEach(x=>x.classList.toggle("on",x.dataset.dir===WORDS_DIR));
+      paintList();
+    };
+  });
+  const search=head.querySelector("#wsearch");
+  search.oninput=()=>{ WORDS_Q=search.value; paintList(); };
+  // keep focus + caret after re-render
+  setTimeout(()=>{ try{ search.focus(); search.setSelectionRange(search.value.length,search.value.length);}catch(e){} },0);
+
+  const listCard=h(`<section class="card" id="wlist"></section>`);
+  view().appendChild(listCard);
+
+  function paintList(){
+    const q=WORDS_Q.trim().toLowerCase();
+    const lc=document.getElementById("wlist"); if(!lc) return;
+    lc.innerHTML="";
+    let shown=0;
+    order.forEach(topic=>{
+      const items=groups[topic].filter(v=>!q || v.nl.toLowerCase().includes(q) || v.en.toLowerCase().includes(q));
+      if(!items.length) return;
+      lc.appendChild(h(`<div class="eyebrow" style="margin:14px 0 6px">${topic}</div>`));
+      items.forEach(v=>{
+        shown++;
+        const known = srs[v.nl] && srs[v.nl].reps>=2;
+        const primary = WORDS_DIR==="nl" ? v.nl : v.en;
+        const secondary = WORDS_DIR==="nl" ? v.en : v.nl;
+        const row=h(`<div class="wrow">
+          <button class="spk" title="Hear it">🔊</button>
+          <div class="wpair">
+            <span class="wprim">${primary}</span>
+            <span class="warrow">→</span>
+            <span class="wsec">${secondary}</span>
+          </div>
+          ${known?'<span class="wknown" title="You know this one">✓</span>':'<span></span>'}
+        </div>`);
+        row.querySelector(".spk").onclick=()=>speak(v.nl); // always speak the Dutch
+        lc.appendChild(row);
+      });
+    });
+    if(!shown) lc.appendChild(h(`<p class="muted" style="margin:10px 0">No words match "${WORDS_Q}".</p>`));
+  }
+  paintList();
+}
+
+/* ---- Roadmap ---- */
+function renderPlan(){
+  view().innerHTML="";
+  const card=h(`<section class="card"><div class="eyebrow">32-week route · A0 → A2</div><h2 style="margin:4px 0 6px">Your plan at 1–2 hrs/week</h2><p class="muted" style="margin:0 0 6px">Tap a leg when you finish it. Realistic for a couple studying together with a March-2027 target.</p></section>`);
+  view().appendChild(card);
+  ROADMAP.forEach(r=>{
+    const done=!!P().roadmapDone[r.wk];
+    const leg=h(`<div class="card leg" style="margin-bottom:8px;${done?'opacity:.6':''}">
+      <div class="wk">wk ${r.wk}</div>
+      <div>
+        <div class="focus">${done?'✓ ':''}${r.focus}</div>
+        <div class="part">${r.part}</div>
+      </div></div>`);
+    leg.style.cursor="pointer";
+    leg.onclick=()=>{ P().roadmapDone[r.wk]=!done; save(); renderPlan(); };
+    view().appendChild(leg);
+  });
+}
+
+/* ====== Export / import ====== */
+function exportSnap(){
+  const blob=new Blob([snapshot()],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="dutch-inburgering-progress.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+function importSnap(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ if(loadSnapshot(r.result)){ renderAll(); alert("Backup loaded ✓"); } else alert("Could not read this file."); };
+  r.readAsText(f);
+}
+
+/* ====== Router ====== */
+function renderAll(){
+  renderChrome();
+  const t=TABS.find(x=>x.id===TAB);
+  if(tabLocked(t)){ TAB="home"; }
+  switch(TAB){
+    case "home": renderHome(); break;
+    case "cards": renderCards(); break;
+    case "words": renderWords(); break;
+    case "knm": quizSection("KNM"); break;
+    case "reading": quizSection("READING"); break;
+    case "listen": quizSection("LISTENING"); break;
+    case "write": renderWrite(); break;
+    case "speak": renderSpeak(); break;
+    case "plan": renderPlan(); break;
+  }
+  window.scrollTo({top:0,behavior:"smooth"});
+  save();   // persist level/profile/tab and any pending state
+}
+if(window.speechSynthesis) speechSynthesis.onvoiceschanged=()=>{};
+restore();   // load saved progress from this device, if any
+renderAll();
+</script>
+</body>
+</html>
