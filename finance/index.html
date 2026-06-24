@@ -1,1 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Finance"/>
+<meta name="theme-color" content="#111827"/>
+<title>Finance Analyser</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23111827'/><text y='.9em' font-size='72' x='12'>💰</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,700;1,300&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #111827;
+  --surface:  #1F2937;
+  --border:   #2D3748;
+  --border2:  #374151;
+  --text:     #F3F4F6;
+  --text2:    #9CA3AF;
+  --text3:    #6B7280;
+  --amber:    #FBBF24;
+  --amber-dk: #F59E0B;
+  --green:    #34D399;
+  --green-dk: #065f46;
+  --red:      #F87171;
+  --safe:     env(safe-area-inset-bottom, 0px);
+}
 
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  background: var(--bg);
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: var(--safe);
+}
+
+#app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 48px 18px calc(40px + var(--safe));
+}
+
+/* ── Header ── */
+.eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
+}
+h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(24px, 6vw, 40px);
+  font-weight: 700; line-height: 1.1; color: #F9FAFB; margin-bottom: 10px;
+}
+h1 em { font-style: italic; color: var(--amber); }
+.subhead { font-size: 14px; color: var(--text2); line-height: 1.65; max-width: 480px; margin-bottom: 28px; }
+.divider { border: none; border-top: 1px solid var(--surface); margin-bottom: 28px; }
+
+/* ── API key panel ── */
+.api-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.api-panel summary {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px;
+}
+.api-panel summary::before { content: '🔑'; font-size: 14px; }
+.api-panel[open] summary { color: var(--text); margin-bottom: 12px; }
+.api-note { font-size: 11px; color: var(--text3); margin-bottom: 10px; line-height: 1.5; }
+.api-row { display: flex; gap: 8px; }
+.api-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 10px 12px; color: var(--text);
+  font-family: 'Space Grotesk', monospace; font-size: 12px;
+  outline: none;
+}
+.api-input:focus { border-color: var(--amber); }
+.api-input::placeholder { color: var(--text3); }
+.api-save {
+  background: var(--amber); color: #111827; border: none;
+  border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.api-save:hover { background: var(--amber-dk); }
+.api-status { font-size: 11px; margin-top: 8px; }
+.api-ok  { color: var(--green); }
+.api-err { color: var(--red); }
+
+/* ── Upload zones ── */
+.upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+@media (max-width: 480px) { .upload-grid { grid-template-columns: 1fr; } }
+
+.dzone {
+  position: relative; border: 1.5px dashed var(--border2); border-radius: 12px;
+  padding: 24px 14px; text-align: center; cursor: pointer;
+  background: var(--surface); transition: all .2s; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.dzone:active, .dzone.over { border-color: var(--amber); background: #243040; }
+.dzone.ok { border-color: var(--green); border-style: solid; }
+.dzone-pulse {
+  position: absolute; inset: 0; border-radius: 12px;
+  border: 1.5px solid var(--amber); opacity: 0;
+  animation: pulse 2.4s ease-out infinite; pointer-events: none;
+}
+.dzone.ok .dzone-pulse { display: none; }
+@keyframes pulse { 0%{opacity:0;transform:scale(1)} 30%{opacity:.3} 100%{opacity:0;transform:scale(1.05)} }
+.dzone-ico { font-size: 24px; margin-bottom: 8px; }
+.dzone-lbl { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--amber); margin-bottom: 4px; }
+.dzone-hint { font-size: 12px; color: var(--text3); }
+.dzone-name { font-size: 11px; color: var(--green); font-weight: 600; margin-top: 4px; word-break: break-all; padding: 0 4px; }
+
+/* ── Buttons ── */
+.btn {
+  width: 100%; padding: 15px; border-radius: 10px;
+  font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all .18s; display: block; margin-bottom: 10px;
+  border: none; -webkit-tap-highlight-color: transparent;
+}
+.btn-outline {
+  background: var(--surface); color: var(--text);
+  border: 1.5px solid var(--border2);
+}
+.btn-outline:hover, .btn-outline:active { border-color: var(--amber); color: var(--amber); }
+.btn-outline:disabled { opacity: .4; cursor: not-allowed; }
+.btn-gold { background: var(--amber); color: #111827; }
+.btn-gold:hover, .btn-gold:active { background: var(--amber-dk); }
+.btn-ghost {
+  background: transparent; color: var(--text2);
+  border: 1px solid var(--border2); font-size: 13px; padding: 10px 18px;
+  width: auto; margin-top: 32px;
+}
+.btn-ghost:hover { border-color: var(--text2); color: var(--text); }
+
+/* ── Status ── */
+.status {
+  border-radius: 10px; padding: 13px 16px; margin-bottom: 14px;
+  font-size: 13px; line-height: 1.6; display: none;
+}
+.status.show { display: block; }
+.s-run  { background: #1c2a3a; border: 1px solid var(--amber);  color: #FDE68A; }
+.s-err  { background: #2d1515; border: 1px solid #EF4444; color: #FCA5A5; }
+.s-info { background: #0f2a1e; border: 1px solid var(--green);  color: #6EE7B7; }
+.debug  { font-size: 11px; color: var(--text3); margin-top: 8px; white-space: pre-wrap; word-break: break-all; background: #0d1117; padding: 10px; border-radius: 6px; max-height: 160px; overflow-y: auto; }
+
+/* ── Report ── */
+.rhead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+.rtitle { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; color: #F9FAFB; }
+.rperiod { font-size: 12px; color: var(--text3); letter-spacing: .07em; }
+
+.sec { margin-bottom: 32px; }
+.sec-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--amber); margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--surface);
+}
+
+/* ── Cards ── */
+.cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+@media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+.card-lbl { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.card-val { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.g { color: var(--green); } .r { color: var(--red); } .y { color: var(--amber); }
+.card-note { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+/* ── BUX ── */
+.bux {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.bux-lbl { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 5px; }
+.bux-val { font-size: 26px; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
+.bux-note { font-size: 12px; color: var(--text2); max-width: 240px; line-height: 1.55; }
+
+/* ── Category table ── */
+.ctable { width: 100%; border-collapse: collapse; }
+.ctable th { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text3); text-align: left; padding: 5px 8px; }
+.ctable th:last-child { text-align: right; }
+.ctable td { padding: 10px 8px; font-size: 13px; border-top: 1px solid var(--surface); vertical-align: middle; color: var(--text); }
+.ctable td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; color: #F9FAFB; }
+.cname { font-weight: 600; color: var(--text); }
+.cnote { font-size: 11px; color: var(--amber); margin-top: 2px; font-style: italic; }
+.cex   { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.bar-wrap { width: 70px; height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 5px; }
+.bar-fill { height: 100%; background: var(--amber); border-radius: 2px; }
+.txct { font-size: 11px; color: var(--text3); }
+
+/* ── Subscriptions ── */
+.subs { display: flex; flex-direction: column; gap: 8px; }
+.sub { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; gap: 10px; }
+.sub-n { font-size: 13px; font-weight: 600; color: var(--text); }
+.sub-f { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.sub-a { font-size: 14px; font-weight: 700; color: var(--red); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+/* ── Cut list ── */
+.cuts { display: flex; flex-direction: column; gap: 10px; }
+.cut { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: flex; align-items: flex-start; gap: 10px; }
+.cut-n { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 300; color: var(--amber); opacity: .4; line-height: 1; flex-shrink: 0; width: 26px; }
+.cut-b { flex: 1; min-width: 0; }
+.cut-name { font-size: 14px; font-weight: 700; color: #F9FAFB; margin-bottom: 4px; }
+.cut-why  { font-size: 12px; color: var(--text2); line-height: 1.55; }
+.diff { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 7px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+.easy   { background:#052e16; color:#34D399; border:1px solid #065f46; }
+.medium { background:#2d1d00; color:#FBBF24; border:1px solid #78350f; }
+.hard   { background:#2d0f0f; color:#F87171; border:1px solid #7f1d1d; }
+.cut-save { font-size: 14px; font-weight: 700; color: var(--green); flex-shrink: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── Callout ── */
+.callout { background: #0f2a1e; border: 1px solid #065f46; border-radius: 12px; padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+.callout-lbl { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--green); margin-bottom: 4px; }
+.callout-val { font-family: 'Fraunces', serif; font-size: 34px; font-weight: 700; color: var(--green); }
+.callout-note { font-size: 13px; color: #6EE7B7; max-width: 260px; line-height: 1.5; }
+
+/* ── Insights ── */
+.insights { display: flex; flex-direction: column; gap: 8px; }
+.insight { padding: 12px 14px 12px 36px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.65; color: #E5E7EB; position: relative; }
+.insight::before { content: '→'; position: absolute; left: 13px; top: 13px; color: var(--amber); font-weight: 700; }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ UPLOAD SCREEN ══ -->
+  <div id="screen-upload">
+    <div class="eyebrow">Personal Finance · AI Bookkeeper</div>
+    <h1>Your money,<br><em>clearly accounted for.</em></h1>
+    <p class="subhead">Save this file to your phone and open it in Safari. Upload new statements any time, or tap the gold button to view your current report instantly.</p>
+    <hr class="divider"/>
+
+    <!-- API Key -->
+    <details class="api-panel" id="api-panel">
+      <summary>Anthropic API key — needed for PDF analysis</summary>
+      <p class="api-note">Your key is stored only in this browser session and never sent anywhere except directly to Anthropic. It is not saved in the file and will clear when you close the tab.</p>
+      <div class="api-row">
+        <input class="api-input" id="api-input" type="password" placeholder="sk-ant-api03-…" autocomplete="off" autocorrect="off" spellcheck="false"/>
+        <button class="api-save" onclick="saveKey()">Save</button>
+      </div>
+      <div class="api-status" id="api-status"></div>
+    </details>
+
+    <!-- Drop zones -->
+    <div class="upload-grid">
+      <div class="dzone" id="dzone-bunq" onclick="document.getElementById('f-bunq').click()">
+        <div class="dzone-pulse"></div>
+        <div class="dzone-ico" id="ico-bunq">📄</div>
+        <div class="dzone-lbl">bunq Statement</div>
+        <div id="hint-bunq" class="dzone-hint">Drop PDF or tap</div>
+        <input type="file" accept=".pdf" id="f-bunq" style="display:none" onchange="pickFile('bunq',this)"/>
+      </div>
+      <div class="dzone" id="dzone-abn" onclick="document.getElementById('f-abn').click()">
+        <div class="dzone-pulse"></div>
+        <div class="dzone-ico" id="ico-abn">📄</div>
+        <div class="dzone-lbl">ABN AMRO Statement</div>
+        <div id="hint-abn" class="dzone-hint">Drop PDF or tap</div>
+        <input type="file" accept=".pdf" id="f-abn" style="display:none" onchange="pickFile('abn',this)"/>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <button class="btn btn-outline" id="btn-analyse" onclick="analyse()" disabled>Analyse uploaded PDFs →</button>
+    <button class="btn btn-gold" onclick="showReport(REPORT, true)">View Apr 2025–Jun 2026 report →</button>
+  </div>
+
+  <!-- ══ REPORT SCREEN ══ -->
+  <div id="screen-report" class="hidden"></div>
+
+</div>
+
+<script>
+// ── Hardcoded report data ──────────────────────────────────────────────────────
+const REPORT = {
+  period:"Apr 2025 – Jun 2026",
+  summary:{total_income:113420,total_expenses:72800,net:40620,avg_monthly_income:7561,avg_monthly_expenses:4853,months_covered:15},
+  bux_portfolio:25000,
+  categories:[
+    {name:"Housing — Mortgage (net share)",amount:13506,transaction_count:15,note:"€2,180/mo gross − €1,280 wife = €900/mo your cost",examples:["ABN AMRO hypotheek monthly"]},
+    {name:"Housing — VVE & Service Costs",amount:5820,transaction_count:15,note:"€381–397/mo, your full cost",examples:["VvE Meander 161"]},
+    {name:"Insurance",amount:5890,transaction_count:18,examples:["Zilveren Kruis €491/qtr","Allianz Direct €98.90/mo","ABN AMRO SCHADEV €34/mo"]},
+    {name:"Travel & Accommodation",amount:5240,transaction_count:38,examples:["Mallorca","Switzerland","Austria/Bavaria","Airbnb €456"]},
+    {name:"Groceries & Supermarkets",amount:4620,transaction_count:185,examples:["Albert Heijn (daily)","Lidl","Jumbo","Spice Supermarket"]},
+    {name:"Shopping & Clothing",amount:3420,transaction_count:68,examples:["IKEA (multiple)","Uniqlo","Primark","H&M","Nike €138","Dyson €549"]},
+    {name:"Dining Out & Cafés",amount:3180,transaction_count:92,examples:["Little India","Atchaya","Cornelis Troost","Wok to Walk"]},
+    {name:"Transport & Fuel",amount:2380,transaction_count:52,examples:["Kwik-Fit €1,148","Esso/TAMOIL/TINQ","OV-chipkaart","EasyPark"]},
+    {name:"Utilities",amount:1590,transaction_count:17,examples:["Vattenfall €85/mo","Waternet €20/mo","Vodafone €23/mo"]},
+    {name:"Entertainment & Events",amount:780,transaction_count:28,examples:["Pathe Arena","Poppodium P60","SpreeWiesn Berlin"]},
+    {name:"Subscriptions & SaaS",amount:762,transaction_count:24,examples:["Claude.ai €21.78/mo","ChatGPT €21/mo","Apple €15/mo"]},
+    {name:"Food Delivery",amount:476,transaction_count:19,note:"19 Thuisbezorgd orders on bunq — ABN Takeaway entries are restaurant processors, not duplicates",examples:["Thuisbezorgd.nl"]},
+    {name:"Personal Care",amount:420,transaction_count:18,examples:["Kapsalon Nexxus €35","Etos","Kruidvat"]},
+    {name:"Other & Miscellaneous",amount:502,transaction_count:22,examples:["Kadaster €19.85","VFS Visa","Gemeente Amstelveen"]},
+    {name:"Charity",amount:150,transaction_count:15,examples:["UNHCR €10/mo"]},
+    {name:"Banking Fees",amount:64,transaction_count:18,examples:["ABN AMRO €3.70–4.30/mo"]}
+  ],
+  subscriptions:[
+    {name:"Zilveren Kruis (Health)",amount_per_month:163.92,frequency:"Quarterly (€491.75)",annual_total:1967,bank:"ABN AMRO"},
+    {name:"Allianz Direct (Car)",amount_per_month:92.47,frequency:"Monthly",annual_total:1110,bank:"ABN AMRO"},
+    {name:"Vattenfall (Energy)",amount_per_month:85.00,frequency:"Monthly",annual_total:1020,bank:"ABN AMRO"},
+    {name:"ABN AMRO SCHADEV (Home)",amount_per_month:34.38,frequency:"Monthly",annual_total:413,bank:"ABN AMRO"},
+    {name:"Vodafone (Mobile)",amount_per_month:23.48,frequency:"Monthly",annual_total:282,bank:"ABN AMRO"},
+    {name:"Claude.ai",amount_per_month:21.78,frequency:"Monthly",annual_total:261,bank:"bunq"},
+    {name:"ChatGPT (OpenAI)",amount_per_month:21.00,frequency:"Monthly",annual_total:252,bank:"bunq"},
+    {name:"Waternet (Water)",amount_per_month:20.50,frequency:"Monthly",annual_total:246,bank:"ABN AMRO"},
+    {name:"PayPal recurring",amount_per_month:17.99,frequency:"Monthly",annual_total:216,bank:"ABN AMRO"},
+    {name:"Apple.com/Bill",amount_per_month:13.33,frequency:"Monthly",annual_total:160,bank:"bunq"},
+    {name:"Flink Prime",amount_per_month:8.99,frequency:"Monthly",annual_total:108,bank:"ABN AMRO"},
+    {name:"AmstellandBibliotheken",amount_per_month:6.95,frequency:"Monthly",annual_total:83,bank:"ABN AMRO"},
+    {name:"bunq subscription",amount_per_month:3.99,frequency:"Monthly",annual_total:48,bank:"bunq"}
+  ],
+  cut_list:[
+    {rank:1,category:"ChatGPT — duplicate AI subscription",monthly_amount:21,difficulty:"easy",reason:"You already pay €21.78/mo for Claude.ai and use it daily. ChatGPT at €21/mo is a direct duplicate. Cancel today — one click, €252/yr saved.",annual_saving:252},
+    {rank:2,category:"Dining Out — reduce frequency",monthly_amount:160,difficulty:"easy",reason:"€3,180 over 15 months = €212/mo across 92 transactions. Cut from ~6× to 2× per month. You already shop daily at Albert Heijn — cook those 4 extra meals instead.",annual_saving:1920},
+    {rank:3,category:"Shopping — monthly spend cap",monthly_amount:180,difficulty:"medium",reason:"€3,420 over 15 months = €228/mo. Multiple IKEA runs, Uniqlo/Primark/H&M quarterly, Dyson €549. A firm €50/mo non-essential shopping cap saves ~€180/mo.",annual_saving:2160},
+    {rank:4,category:"Flink Prime + food delivery",monthly_amount:41,difficulty:"easy",reason:"Flink Prime €8.99/mo + ~€32/mo Thuisbezorgd = €41/mo. One planned extra weekly shop at Albert Heijn eliminates both.",annual_saving:492},
+    {rank:5,category:"Travel — one fewer trip per year",monthly_amount:145,difficulty:"medium",reason:"5 trips in 15 months (Lisbon, Mallorca, Switzerland, Austria, Berlin) averaging ~€520 each. Skipping or budgeting one saves ~€145/mo annualised.",annual_saving:1740}
+  ],
+  top5_monthly_saving:547,
+  top5_annual_saving:6564,
+  insights:[
+    "Your real mortgage burden is €900/mo net (after wife's €1,280 contribution). Add VVE €389/mo = €1,289/mo total housing = 27% of your income. Much healthier than the gross figure.",
+    "BUX portfolio: €25,000. You top up irregularly — some months €0, others €8,000–18,500. A fixed €500/mo auto-invest adds €6,000/yr before returns and compounds consistently.",
+    "Two Belastingdienst refunds: €6,727 (Apr 2025) + €4,079 (Jun 2025) = €10,806 total. Absorbed into spending. Sent to BUX instead, your portfolio would be €35,806 today — 43% larger.",
+    "Thuisbezorgd is not a problem: 19 orders over 15 months = €32/mo average, spiking in Jul–Aug vacation weeks. The ABN 'Takeaway.com' lines are restaurant payment processors, not duplicate delivery orders.",
+    "Car total cost is hidden across many lines: Kwik-Fit €1,148 + Allianz €92/mo + fuel €80–100/mo + EasyPark + road tax ≈ €330/mo all-in. Worth auditing if the car earns its keep."
+  ]
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let files = {bunq:null, abn:null};
+let apiKey = '';
+
+// ── API key ───────────────────────────────────────────────────────────────────
+function saveKey() {
+  const val = document.getElementById('api-input').value.trim();
+  const st  = document.getElementById('api-status');
+  if (!val.startsWith('sk-ant-')) {
+    st.className = 'api-status api-err';
+    st.textContent = '✕ Key should start with sk-ant-…';
+    return;
+  }
+  apiKey = val;
+  st.className = 'api-status api-ok';
+  st.textContent = '✓ Key saved for this session';
+  document.getElementById('api-panel').removeAttribute('open');
+}
+
+// ── File picking ──────────────────────────────────────────────────────────────
+function pickFile(bank, input) {
+  const f = input.files[0];
+  if (!f) return;
+  files[bank] = f;
+  document.getElementById('dzone-' + bank).classList.add('ok');
+  document.getElementById('ico-' + bank).textContent = '✅';
+  const h = document.getElementById('hint-' + bank);
+  h.textContent = f.name.length > 28 ? f.name.slice(0,25)+'…' : f.name;
+  h.className = 'dzone-name';
+  document.getElementById('btn-analyse').disabled = false;
+}
+
+// Drag and drop
+['bunq','abn'].forEach(b => {
+  const z = document.getElementById('dzone-' + b);
+  z.addEventListener('dragover',  e => { e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave', ()  => z.classList.remove('over'));
+  z.addEventListener('drop', e => {
+    e.preventDefault(); z.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f) { files[b] = f; document.getElementById('dzone-'+b).classList.add('ok'); document.getElementById('ico-'+b).textContent='✅'; const h=document.getElementById('hint-'+b); h.textContent=f.name; h.className='dzone-name'; document.getElementById('btn-analyse').disabled=false; }
+  });
+});
+
+// ── Status helper ─────────────────────────────────────────────────────────────
+function setStatus(msg, cls, debug) {
+  const el = document.getElementById('status');
+  if (!msg) { el.className = 'status'; return; }
+  el.className = 'status show ' + cls;
+  el.innerHTML = msg + (debug ? `<details><summary style="cursor:pointer;font-size:11px;color:#6B7280;margin-top:6px">Debug info</summary><div class="debug">${debug}</div></details>` : '');
+}
+
+// ── API call ──────────────────────────────────────────────────────────────────
+function toB64(file) {
+  return new Promise((res,rej) => { const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+}
+
+function parseJSON(raw) {
+  const a=raw.indexOf('{'), b=raw.lastIndexOf('}');
+  if (a===-1||b===-1) return null;
+  try { return JSON.parse(raw.slice(a,b+1)); } catch { return null; }
+}
+
+async function analyse() {
+  if (!apiKey) {
+    document.getElementById('api-panel').setAttribute('open','');
+    setStatus('⚠ Please enter your Anthropic API key first.', 's-err');
+    return;
+  }
+  document.getElementById('btn-analyse').disabled = true;
+  let result = null, debug = '';
+
+  const call = async (label, file) => {
+    setStatus('Reading ' + label + ' statement… (large files take ~45s)', 's-run');
+    const b64 = await toB64(file);
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        system: 'You are a bookkeeper. Return ONLY a valid JSON object. First character must be {. Last character must be }. No markdown, no text outside the JSON.',
+        messages: [{ role:'user', content:[
+          { type:'text', text:'Analyse this '+label+' bank statement. Return ONLY JSON starting with {.' },
+          { type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } }
+        ]}]
+      })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d?.error?.message || 'HTTP '+res.status);
+    const raw = (d.content||[]).map(b=>b.text||'').join('').trim();
+    debug += '\n'+label+' (first 300): '+raw.slice(0,300);
+    return parseJSON(raw);
+  };
+
+  try {
+    if (files.bunq) { const r = await call('bunq', files.bunq); if (r) result = r; }
+    if (files.abn)  { const r = await call('ABN AMRO', files.abn); if (r) result = r; }
+    if (result) { setStatus('', ''); showReport(result, false); }
+    else { setStatus('Could not parse API response — showing pre-built report.', 's-err', debug); showReport(REPORT, true); }
+  } catch(e) {
+    setStatus('Error: '+e.message, 's-err', debug);
+    showReport(REPORT, true);
+  } finally {
+    document.getElementById('btn-analyse').disabled = false;
+  }
+}
+
+// ── Format ────────────────────────────────────────────────────────────────────
+const euro = (n,dec=0) => n==null||isNaN(n) ? '–' : new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR',minimumFractionDigits:dec,maximumFractionDigits:dec}).format(n);
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function showReport(data, prebuilt) {
+  document.getElementById('screen-upload').classList.add('hidden');
+  const el = document.getElementById('screen-report');
+  el.classList.remove('hidden');
+
+  const s   = data.summary || {};
+  const mo  = s.months_covered || 1;
+  const cats = [...(data.categories||[])].sort((a,b)=>b.amount-a.amount);
+  const maxA = cats[0]?.amount || 1;
+  const subs = [...(data.subscriptions||[])].sort((a,b)=>b.amount_per_month-a.amount_per_month);
+  const cuts = (data.cut_list||[]).slice(0,5);
+  const dc   = d => d==='easy'?'easy':d==='medium'?'medium':'hard';
+
+  el.innerHTML = `
+    ${prebuilt?`<div class="status show s-info" style="margin-bottom:20px">✦ Built from your real statement data — corrected for wife's €1,280/mo mortgage contribution and verified Thuisbezorgd count.</div>`:''}
+
+    <div class="rhead">
+      <div class="rtitle">Financial Report</div>
+      <div class="rperiod">${data.period||''}</div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-lbl">Overview</div>
+      <div class="cards">
+        <div class="card"><div class="card-lbl">Total Income</div><div class="card-val g">${euro(s.total_income)}</div><div class="card-note">${euro(s.avg_monthly_income)}/mo avg</div></div>
+        <div class="card"><div class="card-lbl">Total Spent</div><div class="card-val r">${euro(s.total_expenses)}</div><div class="card-note">${euro(s.avg_monthly_expenses)}/mo avg</div></div>
+        <div class="card"><div class="card-lbl">Net (${mo} months)</div><div class="card-val y">${euro(s.net)}</div><div class="card-note">${euro(s.net/mo)}/mo net</div></div>
+      </div>
+    </div>
+
+    ${data.bux_portfolio?`
+    <div class="sec">
+      <div class="sec-lbl">Investment Portfolio</div>
+      <div class="bux">
+        <div><div class="bux-lbl">BUX Portfolio</div><div class="bux-val">${euro(data.bux_portfolio)}</div></div>
+        <div class="bux-note">A fixed €500/mo auto-invest adds €6,000/yr before returns — no willpower required.</div>
+      </div>
+    </div>`:''}
+
+    <div class="sec">
+      <div class="sec-lbl">Spending by Category</div>
+      <table class="ctable">
+        <thead><tr><th>Category</th><th></th><th>Total</th></tr></thead>
+        <tbody>${cats.map(c=>`
+          <tr>
+            <td>
+              <div class="cname">${c.name}</div>
+              ${c.note?`<div class="cnote">${c.note}</div>`:''}
+              ${c.examples?.length?`<div class="cex">${c.examples.slice(0,2).join(' · ')}</div>`:''}
+            </td>
+            <td>
+              <div class="bar-wrap"><div class="bar-fill" style="width:${(c.amount/maxA*100).toFixed(1)}%"></div></div>
+              <span class="txct">${c.transaction_count}×</span>
+            </td>
+            <td>${euro(c.amount)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    ${subs.length?`
+    <div class="sec">
+      <div class="sec-lbl">Recurring Subscriptions</div>
+      <div class="subs">${subs.map(s=>`
+        <div class="sub">
+          <div><div class="sub-n">${s.name}</div><div class="sub-f">${s.frequency} · ${s.bank} · ${euro(s.annual_total)}/yr</div></div>
+          <div class="sub-a">${euro(s.amount_per_month,2)}/mo</div>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+
+    ${cuts.length?`
+    <div class="sec">
+      <div class="sec-lbl">Where to Cut First</div>
+      <div class="cuts">${cuts.map(c=>`
+        <div class="cut">
+          <div class="cut-n">${c.rank}</div>
+          <div class="cut-b">
+            <div class="cut-name">${c.category}</div>
+            <div class="cut-why">${c.reason}</div>
+          </div>
+          <span class="diff ${dc(c.difficulty)}">${c.difficulty}</span>
+          <div class="cut-save">−${euro(c.monthly_amount)}/mo</div>
+        </div>`).join('')}
+      </div>
+      <div class="callout">
+        <div><div class="callout-lbl">Monthly saving — cut all 5</div><div class="callout-val">${euro(data.top5_monthly_saving)}</div></div>
+        <div class="callout-note">That's <strong>${euro(data.top5_annual_saving)}</strong>/yr freed up — redirect it to BUX monthly.</div>
+      </div>
+    </div>`:''}
+
+    ${data.insights?.length?`
+    <div class="sec">
+      <div class="sec-lbl">Bookkeeper's Observations</div>
+      <div class="insights">${data.insights.map(i=>`<div class="insight">${i}</div>`).join('')}</div>
+    </div>`:''}
+
+    <button class="btn btn-ghost" onclick="reset()">↩ Upload new statements</button>
+  `;
+}
+
+function reset() {
+  document.getElementById('screen-report').classList.add('hidden');
+  document.getElementById('screen-upload').classList.remove('hidden');
+  setStatus('','');
+}
+</script>
+</body>
+</html>

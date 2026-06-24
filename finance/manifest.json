@@ -1,0 +1,14 @@
+{
+  "name": "Finance Analyser",
+  "short_name": "Finance",
+  "description": "Personal finance analyser — spending, subscriptions and cut list",
+  "start_url": "/finance/",
+  "scope": "/finance/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
